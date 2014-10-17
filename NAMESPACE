@@ -1,0 +1,3 @@
+importFrom(survival, survfit, Surv, coxph)
+
+exportPattern("^[[:alpha:]]+")
