@@ -16,8 +16,6 @@ License: \tab GPL \cr
 }
 \author{
 Layla Parast
-%Maintainer: Layla Parast <parast@rand.org>
-%~~ The author and/or maintainer of the package ~~
 }
 \references{
 %~~ Literature or other references for background information ~~

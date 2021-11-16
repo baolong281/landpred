@@ -3,11 +3,11 @@
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 %%  ~~function to do ... ~~
-Helper function for AUC.landmark
+Helper function
 }
 \description{
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
-Helper function for AUC.landmark; should not be called directly by user.
+Helper function; should not be called directly by user.
 }
 \usage{
 cumsum2(mydat)
@@ -30,3 +30,4 @@ mydat}
 %%  ~~who you are~~
 Layla Parast
 }
+\keyword{arith}

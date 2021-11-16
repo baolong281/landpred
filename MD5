@@ -1,5 +1,5 @@
-a58a91c2848c6628f4230154b080fe42 *DESCRIPTION
-79616188a747136aaea02722d82f5075 *NAMESPACE
+3414e7b0c9dbffffa0ee0d4293101176 *DESCRIPTION
+baa2aaa1051b60db7baf1a8bc028239d *NAMESPACE
 9f839814d390b76cda411fb3b776691c *R/landpred.R
 ccfec1692e20f6df7d5bc7e03b019326 *data/data_example_landpred.RData
 9a4625628cd42f2fd603dcc1c0430f57 *man/AUC.landmark.Rd
@@ -13,10 +13,10 @@ ccfec1692e20f6df7d5bc7e03b019326 *data/data_example_landpred.RData
 5bd872b70fc0009ebbdbc30080222003 *man/Prob2.k.t.Rd
 fde2a17e3ff8057e692349d428b9807c *man/VTM.Rd
 35feb73643a6ace1e07b3ae33a5263c3 *man/Wi.FUN.Rd
-84a9e1aaddaf4605f2de8a3e8f45841a *man/cumsum2.Rd
+816311f6c6f30017d78e80bea386cb83 *man/cumsum2.Rd
 c45b65adc227aed5caf3cde31388c11b *man/data_example_landpred.Rd
 1b9f1c28e2cee0767c5b296ba397cda0 *man/helper.si.Rd
-0dfe9f722985d7b2d54192f6406fd02c *man/landpred-package.Rd
+1cdccc018d59ca70a1216e8f02575cc8 *man/landpred-package.Rd
 b750136c3e855ce3bc59bd69cb8d4ed8 *man/mse.BW.Rd
 052af7edb0cc85f77df5fbd99ff37037 *man/optimize.mse.BW.Rd
 6b2de40e8cca23d5379e643a45a602b3 *man/prob2.single.Rd
