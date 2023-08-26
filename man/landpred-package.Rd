@@ -5,15 +5,8 @@
 \title{Landmark Prediction of a Survival Outcome
 }
 \description{This package includes functions for landmark prediction of a survival outcome incorporating covariate and short-term event information. For more information about landmark prediction please see: Parast, Layla, Su-Chun Cheng, and Tianxi Cai. Incorporating short-term outcome information to predict long-term survival with discrete markers. Biometrical Journal 53.2 (2011): 294-307.}
-\details{
-\tabular{ll}{
-Package: \tab landpred\cr
-Type: \tab Package\cr
-Version: \tab 1.0\cr
-License: \tab GPL \cr
-}
 %~~ An overview of how to use the package, including the most important functions ~~
-}
+
 \author{
 Layla Parast
 }
