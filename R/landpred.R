@@ -1,14 +1,23 @@
 
 ###################################################
-##calculate probability given no info ###########  
+##calculate probability given no info ###########
 ###################################################
 
 Prob.Null <- function(t0, tau, data, weight=NULL, newdata = NULL) {
-	Xi.long = data[,1]; Di.long = data[,2]; Xi.short = data[,3];  Di.short = data[,4];  Zi = data[,5]
+	Xi.long = data[,1]; Di.long = data[,2];
 	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
-	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
-	else{W2i=weight}
-	Prob = (sum(1*W2i*(Xi.long <= t0 + tau)*(Xi.long > t0)))/(sum	(1*W2i*(Xi.long > t0)))
+
+	if (is.null(weight)) {
+	  W2i <- Wi.FUN(data = cbind	(Xi.long, Di.long),
+	                t0 = t0,
+	                tau = tau)
+	} else {
+	  W2i <- weight
+	}
+
+	Prob = sum(1 * W2i * (Xi.long <= t0 + tau) * (Xi.long > t0)) /
+	       sum(1 * W2i * (Xi.long > t0))
+
 	data.column = vector(length = dim(data)[1])
 	data.column[data[, 1] <= t0] = NA
 	data.column[data[, 1] > t0] = Prob
@@ -17,15 +26,22 @@ Prob.Null <- function(t0, tau, data, weight=NULL, newdata = NULL) {
     	newdata.column = vector(length = dim(newdata)[1])
 	    newdata.column[newdata[, 1] <= t0] = NA
 	    newdata.column[newdata[, 1] > t0] = Prob
-		newdata = cbind(newdata, newdata.column)   
+		newdata = cbind(newdata, newdata.column)
     }
-    return(list("Prob" = Prob, 
-            "data" = data, "newdata" = newdata))
 
+	  return(
+	    new_landpred_result(
+	      Prob=Prob,
+	      data=data,
+	      newdata=newdata,
+	      t0=t0,
+	      tau=tau
+	    )
+	  )
 }
 
 ###################################################
-##calculate IPCW##################################  
+##calculate IPCW##################################
 ###################################################
 Wi.FUN <- function(data, t0, tau, weight.given=NULL)	{
     Xi <- data[,1]; Di <- data[,2]; wihat <- rep(0, length(Xi))
@@ -42,55 +58,79 @@ Ghat.FUN <- function(tt, data,type='fl', weight.given)	{
 }
 
 ###################################################
-##calculate probability given covariate ###########  
+##calculate probability given covariate ###########
 ###################################################
 
 Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NULL) {
  	Xi.long = data[,1]
- 	Di.long = data[,2] 
+ 	Di.long = data[,2]
  	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
-	if(short) { Zi = data[,5]}
-	if(!short) { Zi = data[,3]}
-    if (is.null(weight)) {
-        W2i <- Wi.FUN(data = cbind(Xi.long, Di.long), t0 = t0, tau = tau)
-    }
-    else {
-        W2i = weight
-    }
-    zi.cat = unique(Zi)
-    covariate.results = matrix(nrow = length(zi.cat), ncol = 2)
-    data.column = vector(length = dim(data)[1])
+
+	if(short) {
+	  Zi = data[,5]
+	} else {
+  	Zi = data[,3]
+  }
+
+  if (is.null(weight)) {
+      W2i <- Wi.FUN(data = cbind(Xi.long, Di.long), t0 = t0, tau = tau)
+  } else {
+      W2i = weight
+  }
+
+  zi.cat = unique(Zi)
+  covariate.results = matrix(nrow = length(zi.cat), ncol = 2)
+  data.column = vector(length = dim(data)[1])
 	data.column[data[, 1] <= t0] = NA
-	if(!is.null(newdata)) {
-		newdata.column = vector(length = dim(newdata)[1])
-		newdata.column[newdata[, 1] <= t0] = NA
-		newdata.Zi.column = dim(newdata)[2]
+	if (!is.null(newdata)) {
+	  newdata.column = vector(length = dim(newdata)[1])
+	  newdata.column[newdata[, 1] <= t0] = NA
+	  newdata.Zi.column = dim(newdata)[2]
 	}
-    for (j in 1:length(zi.cat)) {
-    	covariate.results[j, 1] = zi.cat[j]
-        c = zi.cat[j]
-        if(sum(Zi==c) < 10) {print(paste("Warning: Very few individuals with covariate value = ",c))}
-        covariate.results[j, 2] = (sum(1 * (Zi == c) * W2i * (Xi.long <= t0 + tau) * (Xi.long > t0)))/(sum(1 * (Zi == c) * W2i * (Xi.long > t0)))
-        data.column[data[, 1] > t0 & Zi == c] = covariate.results[j, 2]
-        if(!is.null(newdata)) {
-      		newdata.column[newdata[, 1] > t0 & newdata[,newdata.Zi.column] == c] = covariate.results[j, 2]
-		}
-        }
-    data =cbind(data, data.column)
-    if(!is.null(newdata)) {newdata = cbind(newdata, newdata.column)
-    	newdata=as.data.frame(newdata)
-		if(dim(newdata)[2] == 6) {names(newdata) = c("XL", "DL", "XS", "DS", "Z", "Probability") }
-		if(dim(newdata)[2] == 4) {names(newdata) = c("XL", "DL", "Z", "Probability")}
+	for (j in 1:length(zi.cat)) {
+	  covariate.results[j, 1] = zi.cat[j]
+	  c = zi.cat[j]
+	  if (sum(Zi == c) < 10) {
+	    print(paste("Warning: Very few individuals with covariate value = ", c))
+	  }
+	  covariate.results[j, 2] = sum(1 * (Zi == c) * W2i * (Xi.long <= t0 + tau) * (Xi.long > t0)) /
+	                            sum(1 * (Zi == c) * W2i * (Xi.long > t0))
+	  data.column[data[, 1] > t0 &
+	                Zi == c] = covariate.results[j, 2]
+	  if (!is.null(newdata)) {
+	    newdata.column[newdata[, 1] > t0 &
+	                     newdata[, newdata.Zi.column] == c] = covariate.results[j, 2]
+	  }
 	}
-    data=as.data.frame(data)
-	if(short) {names(data) = c("XL", "DL", "XS", "DS", "Z", "Probability") }
-	if(!short) {names(data) = c("XL", "DL", "Z", "Probability")}
-    return(list("Prob" = covariate.results, 
-            "data" = data, "newdata" = newdata))
-    }
+	data = cbind(data, data.column)
+	if (!is.null(newdata)) {
+	  newdata = cbind(newdata, newdata.column)
+	  newdata = as.data.frame(newdata)
+	  if (dim(newdata)[2] == 6) {
+	    names(newdata) = c("XL", "DL", "XS", "DS", "Z", "Probability")
+	  }
+	  if (dim(newdata)[2] == 4) {
+	    names(newdata) = c("XL", "DL", "Z", "Probability")
+	  }
+	}
+	data = as.data.frame(data)
+	if (short) {
+	  names(data) = c("XL", "DL", "XS", "DS", "Z", "Probability")
+	}
+	if (!short) {
+	  names(data) = c("XL", "DL", "Z", "Probability")
+	}
+	return(new_landpred_result(
+	  Prob = covariate.results,
+	  data = data,
+	  newdata = newdata,
+	  t0=t0,
+	  tau=tau
+	))
+  }
 
 ###################################################
-##calculate probability given covariate and TS ####  
+##calculate probability given covariate and TS ####
 ###################################################
 
 Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NULL, newdata=NULL) {
@@ -124,7 +164,7 @@ Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NU
 	if(!is.null(newdata)) {
 		if(is.null(names(newdata))) {
 			newdata = as.data.frame(newdata)
-		} 
+		}
 		newdata.column = vector(length = dim(newdata)[1])
 		newdata.column[newdata[,1] <= t0] = NA
 		for(j in 1:length(zi.cat)) {
@@ -141,24 +181,24 @@ Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NU
 	data = cbind(data[,c(1:2)], exp(data[,3]), data[,c(4:5)], data.column)
 	data=as.data.frame(data)
 	names(data) = c("XL", "DL", "XS", "DS", "Z", "Probability")
-	return(list("data" = data, "newdata" = newdata))			
+	return(list("data" = data, "newdata" = newdata))
 }
 
 prob2.single= function(K,W2i,Xi.long,tau,Di.short,Xi.short, Zi, t0,covariate.value) {
 	P.2 = (sum(1*(Zi==covariate.value)*W2i*(Xi.long <= t0 + tau)*(Xi.long > t0)*(Di.short == 1)*(Xi.short<log(t0))*(Xi.short<log(t0))*K))/(sum(1*(Zi==covariate.value)*W2i*(Xi.long > t0)*(Di.short == 1)*(Xi.short<log(t0))*(Xi.short<log(t0))*K))
- 		return(P.2)		
+ 		return(P.2)
  		}
 
 Prob2.k.t <- function(t,t0, tau, data.use,bandwidth, covariate.value, weight=NULL) {
 	Xi.long = data.use[,1]
 	Di.long = data.use[,2]
-	Xi.short = data.use[,3]  
-	Di.short = data.use[,4]  
+	Xi.short = data.use[,3]
+	Di.short = data.use[,4]
 	Zi = data.use[,5]
 	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
 	else{W2i=weight}
 	K = Kern.FUN(Xi.short,t,bandwidth)
-	P.2.return = apply(K, 1, prob2.single,W2i=W2i,Xi.long=Xi.long,tau=tau,Di.short =Di.short,Xi.short=Xi.short,Zi=Zi, t0=t0,covariate.value=covariate.value) 
+	P.2.return = apply(K, 1, prob2.single,W2i=W2i,Xi.long=Xi.long,tau=tau,Di.short =Di.short,Xi.short=Xi.short,Zi=Zi, t0=t0,covariate.value=covariate.value)
 	P.2.return[t>=log(t0)] = NA
 	return(P.2.return)
 }
@@ -167,12 +207,12 @@ Prob2.k.t <- function(t,t0, tau, data.use,bandwidth, covariate.value, weight=NUL
 Prob2 <- function(t0, tau, data, covariate.value, weight=NULL) {
 	Xi.long = data[,1]; Di.long = data[,2]; Xi.short = data[,3];  Di.short = data[,4];  Zi = data[,5]
 	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
-	else{W2i=weight}	
+	else{W2i=weight}
 	P.1 = (sum(1*(Zi==covariate.value)*W2i*(Xi.long <= t0 + tau)*(Xi.long > t0)*(Xi.short > log(t0))))/(sum	(1*(Zi==covariate.value)*W2i*(Xi.long > 	t0)*(Xi.short > log(t0))))
 	return(P.1)
 }
 
-Kern.FUN <- function(zz,zi,bw) ## returns an (n x nz) matrix 
+Kern.FUN <- function(zz,zi,bw) ## returns an (n x nz) matrix
 {
 	out = (VTM(zz,length(zi))- zi)/bw
    	norm.k = dnorm(out)/bw
@@ -254,14 +294,14 @@ AUC.landmark <- function(t0, tau, data, short = TRUE, weight=NULL) {
 	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
 	else{W2i=weight}
 	Si <- Prob.est; ss <- unique(sort(Si))
-	AUC.est <- sum((helper.si(Si, "<=", Si, W2i*(Xi.long <= t0 + tau)*(Xi.long > t0))   + helper.si(Si, "<", Si, W2i*(Xi.long <= t0 + tau)*(Xi.long 	> t0)))*W2i*(Xi.long > t0 + tau)/2)/(sum(W2i*(Xi.long <= t0+tau)*(Xi.long > t0))*sum(W2i*(Xi.long > t0+tau)))  
+	AUC.est <- sum((helper.si(Si, "<=", Si, W2i*(Xi.long <= t0 + tau)*(Xi.long > t0))   + helper.si(Si, "<", Si, W2i*(Xi.long <= t0 + tau)*(Xi.long 	> t0)))*W2i*(Xi.long > t0 + tau)/2)/(sum(W2i*(Xi.long <= t0+tau)*(Xi.long > t0))*sum(W2i*(Xi.long > t0+tau)))
     return(list("AUC.est" = AUC.est))
 
 }
 
 
-helper.si <- function(yy,FUN,Yi,Vi=NULL)  
-  {  
+helper.si <- function(yy,FUN,Yi,Vi=NULL)
+  {
     if(FUN=="<"|FUN=="<=") { yy <- -yy; Yi <- -Yi}
     if(substring(FUN,2,2)=="=") yy <- yy + 1e-8 else yy <- yy - 1e-8
     pos <- rank(c(yy,Yi))[1:length(yy)] - rank(yy)
@@ -272,9 +312,9 @@ helper.si <- function(yy,FUN,Yi,Vi=NULL)
       if(is.null(dim(Vi))) out <- c(out)
       return(out) ## n.y x p
     }
-  } 
-  
-cumsum2 <- function(mydat) 
+  }
+
+cumsum2 <- function(mydat)
   {
     if(is.null(dim(mydat))) return(cumsum(mydat))
     else{

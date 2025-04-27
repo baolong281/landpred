@@ -2,3 +2,5 @@ importFrom(survival, survfit, Surv, coxph)
 importFrom(stats, bw.nrd, dnorm, optimize)
 
 exportPattern("^[[:alpha:]]+")
+S3method("print", "landpred_result")
+
