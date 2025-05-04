@@ -100,10 +100,11 @@ fit_short_glm <-
   }
 
 
-handle_continuous_pred <- function(landpred_model, newdata, bw, transform=identity) {
+handle_continuous_pred <- function(landpred_model, newdata, transform=identity) {
   model <- landpred_model$model
   t0 <- landpred_model$t0
   tau <- landpred_model$tau
+  bw <- landpred_model$bw
   glm_noinfo <- landpred_model$glm_noinfo
 
   formatted_data <- newdata[, model$names[["covariates"]], drop=FALSE]
@@ -138,27 +139,39 @@ handle_continuous_pred <- function(landpred_model, newdata, bw, transform=identi
  response
 }
 
-get_model <- function(model, t0, tau) {
+get_model <- function(model, t0, tau, bw) {
   glm_noinfo <- fit_glm_normal(model, t0, tau)
   new_landpred_model_continuous(
-    model, glm_noinfo, t0, tau
+    model, glm_noinfo, t0, tau, bw
   )
 }
 
-new_landpred_model_continuous <- function(model, glm_noinfo, t0, tau) {
+new_landpred_model_continuous <- function(model, glm_noinfo, t0, tau, bw) {
   structure(
     list(
       model=model,
       glm_noinfo=glm_noinfo,
       t0=t0,
-      tau=tau
+      tau=tau,
+      bw=bw
     ),
     class = "landpred_model_continuous"
   )
 }
 
-predict.landpred_model_continuous <- function(object, newdata=NULL, type="response", bw, transform=identity) {
-  handle_continuous_pred(object, newdata, bw, transform)
+predict.landpred_model_continuous <- function(object, newdata=NULL, type="response", transform=identity) {
+  handle_continuous_pred(object, newdata, transform)
+}
+
+coef.landpred_model_continuous <- function(object, t_s=NULL, transform=identity, ...) {
+  if(is.null(t_s) || t_s > model$t0) {
+    return(coef(object$glm_noinfo))
+  } else {
+    glm_shortinfo <- fit_short_glm(
+      object$model, object$t0, object$tau, t_s, object$bw, transform
+    )
+    return(coef(glm_shortinfo))
+  }
 }
 
 
