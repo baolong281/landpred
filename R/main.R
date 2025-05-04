@@ -1,5 +1,6 @@
 # Main landpred function
 # Take a formula parse then return landpred model object we can call predict, etc... on
+# CHANGE ALL T_S TO X_L LATEr
 landpred <- function(formula, data, discrete=FALSE) {
 
   tf <- terms(formula, specials=c("Surv"))
@@ -20,7 +21,13 @@ landpred <- function(formula, data, discrete=FALSE) {
   mf <- model.frame(formula, data)
 
   t_l <- model.response(mf)
+  response_expr <- attr(tf, "variables")[[attr(tf, "response") + 1]]
+  t_l_name <- deparse(response_expr[[2]])
+  t_d_name <- deparse(response_expr[[3]])
+
   t_s <- if (!is.null(short_cov)) mf[[short_cov]] else NULL
+  short_expr <- attr(tf, "variables")[[rhs_survival_terms[[1]] + 1]]
+  t_s_name <- deparse(short_expr[[2]])
 
   if(!inherits(t_l, "Surv") || (!is.null(t_s) && !inherits(t_s, "Surv"))) {
     stop("Response variable and short-term covariate must a survival object.")
@@ -35,14 +42,29 @@ landpred <- function(formula, data, discrete=FALSE) {
     stop("Only a singular covariate is allowed if discrete=TRUE")
   }
 
-  new_landpred_model(t_l, t_s, Z, formula = formula, discrete=discrete)
+  names <- list(
+    x_l_name = t_l_name,
+    x_d_name = t_d_name,
+    x_s_name = t_s_name,
+    covariates=covariates
+  )
+
+  new_landpred_model(
+    t_l,
+    t_s,
+    Z,
+    names=names,
+    formula = formula,
+    discrete = discrete
+  )
 }
 
 # Create new landpred model
-new_landpred_model <- function(t_l, t_s, Z, formula, discrete=FALSE) {
+new_landpred_model <- function(t_l, t_s, Z, formula, names, discrete=FALSE) {
   structure(
     list(
-      t_l = t_l, t_s = t_s, Z = Z, formula = formula, discrete = discrete
+      t_l = t_l, t_s = t_s, Z = Z, formula = formula, discrete = discrete,
+      names=names
     ),
     class="landpred_model"
   )

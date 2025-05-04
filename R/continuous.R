@@ -40,45 +40,143 @@ kernel_func <- function(x, bw) {
   dnorm(x / bw) / bw
 }
 
-handle_continuous_pred <- function(model, time, tau, t_s = NULL, bw = NULL, newdata) {
-  X_L <- model$t_l[, "time"]
-  X_S <- model$t_s[, "time"]
-  X_D <- model$t_l[, "status"]
-  Z <- model$Z
+# Linear model for t0 + tau where our given t_s < t0
+# no information on short covariate
+fit_glm_normal <-
+  function(model, t0, tau) {
+    X_L <- model$t_l[, "time"]
+    X_S <- model$t_s[, "time"]
+    X_D <- model$t_l[, "status"]
+    Z <- model$Z
 
-  if (!is.null(X_S)) {
-    ts_gt_subset <- pmin(X_L, X_S) > time
-  } else {
-    ts_gt_subset <- X_L > time
+    ts_formula <-
+      paste("X_L < t0 + tau ~", paste(names(Z), collapse = "+"))
+
+    if (!is.null(X_S)) {
+      ts_gt_subset <- pmin(X_L, X_S) > t0
+    } else {
+      ts_gt_subset <- X_L > t0
+    }
+
+    subset_gt_t0 <- subsetted_df(ts_gt_subset, X_L, X_D, X_S, Z)
+
+
+    # fit as quasibinomial to suppress warnings about non-integer successes
+    model <- glm(
+      as.formula(ts_formula),
+      data = subset_gt_t0,
+      family = "quasibinomial",
+      weights = w_i(subset_gt_t0$X_L, subset_gt_t0$X_D, t0, tau)
+    )
+
+    model
   }
 
-  subset_gt_t0 <- subsetted_df(ts_gt_subset, X_L, X_D, X_S, Z)
+# fit glm with kernel weights and information on short covariate
+fit_short_glm <-
+  function(model, t0, tau, t_s, bw, transform = identity) {
+    X_L <- model$t_l[, "time"]
+    X_S <- model$t_s[, "time"]
+    X_D <- model$t_l[, "status"]
+    Z <- model$Z
 
-  ts_formula <-
-    paste("X_L < time + tau ~", paste(names(Z), collapse = "+"))
-  model_gt <- glm(
-    as.formula(ts_formula),
-    data = subset_gt_t0,
-    family = "binomial",
-    weights = w_i(subset_gt_t0$X_L, subset_gt_t0$X_D, time, tau)
-  )
+    ts_formula <-
+      paste("X_L < t0 + tau ~", paste(names(Z), collapse = "+"))
 
-
-  model_lt <- NULL
-  if (!is.null(X_S)) {
-    ts_lt_subset <- pmin(X_L, X_S) < time
+    # maybe have to check if it was also censored?
+    ts_lt_subset <- X_S < t0 & X_L > t0
 
     subset_lt_t0 <- subsetted_df(ts_lt_subset, X_L, X_D, X_S, Z)
 
-    model_lt <- glm(
+    model <- glm(
       as.formula(ts_formula),
       data = subset_lt_t0,
-      family = "binomial",
-      weights = kernel_func(subset_lt_t0$X_S - t_s, bw=bw) * w_i(subset_lt_t0$X_L, subset_lt_t0$X_D, time, tau)
+      family = "quasibinomial",
+      weights = kernel_func(transform(subset_lt_t0$X_S) - transform(t_s), bw =
+                              bw) * w_i(subset_lt_t0$X_L, subset_lt_t0$X_D, t0, tau)
     )
 
+    model
   }
 
-  return(list(gt_model = model_gt, lt_model = model_lt))
 
+handle_continuous_pred <- function(landpred_model, newdata, bw, transform=identity) {
+  model <- landpred_model$model
+  t0 <- landpred_model$t0
+  tau <- landpred_model$tau
+  glm_noinfo <- landpred_model$glm_noinfo
+
+  formatted_data <- newdata[, model$names[["covariates"]], drop=FALSE]
+
+
+  X_S <- newdata[, model$name[["x_s_name"]], drop=TRUE]
+  t_s_values <- unique(X_S)
+
+  response <- numeric(0)
+
+  for(s in t_s_values) {
+    data_subset <- formatted_data[X_S==s, , drop=FALSE]
+
+    model_specified <- NULL
+    if(s < t0)  {
+      model_specified <- glm_noinfo
+    } else {
+      glm_shortinfo <- fit_short_glm(
+        model, t0, tau, s, bw, transform
+      )
+      model_specified <- glm_shortinfo
+    }
+
+    preds <- predict(
+      model_specified, newdata=data_subset,
+      type="response"
+    )
+
+    response[X_S == s] <- preds
+  }
+
+ response
 }
+
+get_model <- function(model, t0, tau) {
+  glm_noinfo <- fit_glm_normal(model, t0, tau)
+  new_landpred_model_continuous(
+    model, glm_noinfo, t0, tau
+  )
+}
+
+new_landpred_model_continuous <- function(model, glm_noinfo, t0, tau) {
+  structure(
+    list(
+      model=model,
+      glm_noinfo=glm_noinfo,
+      t0=t0,
+      tau=tau
+    ),
+    class = "landpred_model_continuous"
+  )
+}
+
+predict.landpred_model_continuous <- function(object, newdata=NULL, type="response", bw, transform=identity) {
+  handle_continuous_pred(object, newdata, bw, transform)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
