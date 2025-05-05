@@ -1,5 +1,12 @@
-kaplan_maier <- function(times, X, deltas, type="fl") {
-  fit <- survfit(Surv(X, deltas) ~ 1, se.fit = F, type = type)
+kaplan_maier <- function(times, X, deltas, type="fl", weights=NULL) {
+
+  # Default weights if not passed
+  if(!is.null(weights)) {
+    fit <- survfit(Surv(X, deltas) ~ 1, se.fit = F, type = type, weights=weights)
+  } else {
+    fit <- survfit(Surv(X, deltas) ~ 1, se.fit = F, type = type)
+  }
+
   survival_probs <- summary(fit, times=times)$surv
   survival_probs
 }
@@ -26,7 +33,12 @@ w_i <- function(x_l, x_d, t0, tau) {
   output
 }
 
-subsetted_df <- function(indexes, X_L, X_D, X_S, Z) {
+subset_and_format_df <- function(landpred_obj, indexes) {
+  X_L <- landpred_obj$X_L[, "time"]
+  X_S <- landpred_obj$X_S[, "time"]
+  X_D <- landpred_obj$X_L[, "status"]
+  Z <- landpred_obj$Z
+
   subsetted_data <- cbind(data.frame(
     X_L=X_L[indexes],
     X_D=X_D[indexes],
@@ -43,23 +55,17 @@ kernel_func <- function(x, bw) {
 # Linear model for t0 + tau where our given t_s < t0
 # no information on short covariate
 fit_glm_normal <-
-  function(model, t0, tau) {
-    X_L <- model$t_l[, "time"]
-    X_S <- model$t_s[, "time"]
-    X_D <- model$t_l[, "status"]
-    Z <- model$Z
-
+  function(landpred_obj, t0, tau) {
     ts_formula <-
-      paste("X_L < t0 + tau ~", paste(names(Z), collapse = "+"))
+      paste("X_L < t0 + tau ~", paste(names(landpred_obj$Z), collapse = "+"))
 
-    if (!is.null(X_S)) {
-      ts_gt_subset <- pmin(X_L, X_S) > t0
+    if (!is.null(landpred_obj$X_S)) {
+      ts_gt_subset <- pmin(landpred_obj$X_L[, "time"], landpred_obj$X_S[, "time"]) > t0
     } else {
-      ts_gt_subset <- X_L > t0
+      ts_gt_subset <- landpred_obj$X_L[, "time"] > t0
     }
 
-    subset_gt_t0 <- subsetted_df(ts_gt_subset, X_L, X_D, X_S, Z)
-
+    subset_gt_t0 <- subset_and_format_df(landpred_obj, ts_gt_subset)
 
     # fit as quasibinomial to suppress warnings about non-integer successes
     model <- glm(
@@ -74,19 +80,14 @@ fit_glm_normal <-
 
 # fit glm with kernel weights and information on short covariate
 fit_short_glm <-
-  function(model, t0, tau, t_s, bw, transform = identity) {
-    X_L <- model$t_l[, "time"]
-    X_S <- model$t_s[, "time"]
-    X_D <- model$t_l[, "status"]
-    Z <- model$Z
-
+  function(landpred_obj, t0, tau, t_s, bw, transform = identity) {
     ts_formula <-
-      paste("X_L < t0 + tau ~", paste(names(Z), collapse = "+"))
+      paste("X_L < t0 + tau ~", paste(names(landpred_obj$Z), collapse = "+"))
 
     # maybe have to check if it was also censored?
-    ts_lt_subset <- X_S < t0 & X_L > t0
+    ts_lt_subset <- landpred_obj$X_S[, "time"] < t0 & landpred_obj$X_L[, "time"] > t0
 
-    subset_lt_t0 <- subsetted_df(ts_lt_subset, X_L, X_D, X_S, Z)
+    subset_lt_t0 <- subset_and_format_df(landpred_obj, ts_lt_subset)
 
     model <- glm(
       as.formula(ts_formula),
@@ -100,17 +101,17 @@ fit_short_glm <-
   }
 
 
-handle_continuous_pred <- function(landpred_model, newdata, transform=identity) {
-  model <- landpred_model$model
-  t0 <- landpred_model$t0
-  tau <- landpred_model$tau
-  bw <- landpred_model$bw
-  glm_noinfo <- landpred_model$glm_noinfo
+handle_continuous_pred <- function(model, newdata, transform=identity) {
+  landpred_obj <- model$landpred_obj
+  t0 <- model$t0
+  tau <- model$tau
+  bw <- model$bw
+  glm_noinfo <- model$glm_noinfo
 
-  formatted_data <- newdata[, model$names[["covariates"]], drop=FALSE]
+  formatted_data <- newdata[, landpred_obj$names[["covariates"]], drop=FALSE]
 
 
-  X_S <- newdata[, model$name[["x_s_name"]], drop=TRUE]
+  X_S <- newdata[, landpred_obj$name[["x_s_name"]], drop=TRUE]
   t_s_values <- unique(X_S)
 
   response <- numeric(0)
@@ -123,7 +124,7 @@ handle_continuous_pred <- function(landpred_model, newdata, transform=identity) 
       model_specified <- glm_noinfo
     } else {
       glm_shortinfo <- fit_short_glm(
-        model, t0, tau, s, bw, transform
+        landpred_obj, t0, tau, s, bw, transform
       )
       model_specified <- glm_shortinfo
     }
@@ -139,17 +140,31 @@ handle_continuous_pred <- function(landpred_model, newdata, transform=identity) 
  response
 }
 
-get_model <- function(model, t0, tau, bw) {
-  glm_noinfo <- fit_glm_normal(model, t0, tau)
+handle_continuous_confint <- function(model, t_s, samples=200) {
+  glm_shortinfo <- fit_short_glm(model, model$t0, model$tau, t_s, model$bw)
+  # number of observations
+  N <- nobs(glm_shortinfo)
+
+  # bootstrap weights
+  V = matrix(rexp(N * samples), nrow=N)
+
+}
+
+continuous_confint_noinfo <- function(model, samples) {
+
+}
+
+get_model <- function(landpred_obj, t0, tau, bw) {
+  glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
   new_landpred_model_continuous(
-    model, glm_noinfo, t0, tau, bw
+    landpred_obj, glm_noinfo, t0, tau, bw
   )
 }
 
-new_landpred_model_continuous <- function(model, glm_noinfo, t0, tau, bw) {
+new_landpred_model_continuous <- function(landpred_obj, glm_noinfo, t0, tau, bw) {
   structure(
     list(
-      model=model,
+      landpred_obj=landpred_obj,
       glm_noinfo=glm_noinfo,
       t0=t0,
       tau=tau,

@@ -1,6 +1,6 @@
 # Main landpred function
 # Take a formula parse then return landpred model object we can call predict, etc... on
-# CHANGE ALL T_S TO X_L LATEr
+# probably capitalize vectors later, forgot to capializte when doing find + replace
 landpred <- function(formula, data, discrete=FALSE) {
 
   tf <- terms(formula, specials=c("Surv"))
@@ -20,16 +20,16 @@ landpred <- function(formula, data, discrete=FALSE) {
 
   mf <- model.frame(formula, data)
 
-  t_l <- model.response(mf)
+  x_l <- model.response(mf)
   response_expr <- attr(tf, "variables")[[attr(tf, "response") + 1]]
-  t_l_name <- deparse(response_expr[[2]])
+  x_l_name <- deparse(response_expr[[2]])
   t_d_name <- deparse(response_expr[[3]])
 
-  t_s <- if (!is.null(short_cov)) mf[[short_cov]] else NULL
+  x_s <- if (!is.null(short_cov)) mf[[short_cov]] else NULL
   short_expr <- attr(tf, "variables")[[rhs_survival_terms[[1]] + 1]]
-  t_s_name <- deparse(short_expr[[2]])
+  x_s_name <- deparse(short_expr[[2]])
 
-  if(!inherits(t_l, "Surv") || (!is.null(t_s) && !inherits(t_s, "Surv"))) {
+  if(!inherits(x_l, "Surv") || (!is.null(x_s) && !inherits(x_s, "Surv"))) {
     stop("Response variable and short-term covariate must a survival object.")
   }
 
@@ -43,15 +43,15 @@ landpred <- function(formula, data, discrete=FALSE) {
   }
 
   names <- list(
-    x_l_name = t_l_name,
+    x_l_name = x_l_name,
     x_d_name = t_d_name,
-    x_s_name = t_s_name,
+    x_s_name = x_s_name,
     covariates=covariates
   )
 
   new_landpred_model(
-    t_l,
-    t_s,
+    x_l,
+    x_s,
     Z,
     names=names,
     formula = formula,
@@ -60,10 +60,10 @@ landpred <- function(formula, data, discrete=FALSE) {
 }
 
 # Create new landpred model
-new_landpred_model <- function(t_l, t_s, Z, formula, names, discrete=FALSE) {
+new_landpred_model <- function(x_l, x_s, Z, formula, names, discrete=FALSE) {
   structure(
     list(
-      t_l = t_l, t_s = t_s, Z = Z, formula = formula, discrete = discrete,
+      X_L = x_l, X_S = x_s, Z = Z, formula = formula, discrete = discrete,
       names=names
     ),
     class="landpred_model"
@@ -84,32 +84,32 @@ predict.landpred_model <- function(object, t0, tau, ...) {
 
 handle_discrete_pred <- function(model, t0, tau) {
   # format data to pass into old landpred functions
-  t_l <- model$t_l
-  t_s <- model$t_s
+  x_l <- model$x_l
+  x_s <- model$x_s
   Z <- model$Z
 
-  formatted_data <- data.frame(XL = as.numeric(t_l[, "time"]), DL =  as.numeric(t_l[, "status"]) )
+  formatted_data <- data.frame(XL = as.numeric(x_l[, "time"]), DL =  as.numeric(x_l[, "status"]) )
 
   if(!is.null(Z)) {
     Z_df <- data.frame(Z=Z)
   }
 
-  if(!is.null(t_s)) {
+  if(!is.null(x_s)) {
     ts_df <- data.frame(
-      XS = as.numeric(t_s[, "time"]),
-      DL = as.numeric(t_s[, "status"])
+      XS = as.numeric(x_s[, "time"]),
+      DL = as.numeric(x_s[, "status"])
     )
   }
 
-  if(is.null(t_s) && is.null(Z)) {
+  if(is.null(x_s) && is.null(Z)) {
     return(Prob.Null(t0, tau, formatted_data))
-  } else if (is.null(t_s) && !is.null(Z)) {
+  } else if (is.null(x_s) && !is.null(Z)) {
     return(
       Prob.Covariate(
         t0, tau, cbind(formatted_data, Z_df), short=FALSE
       )
     )
-  } else if(!is.null(t_s) && is.null(Z)) {
+  } else if(!is.null(x_s) && is.null(Z)) {
     return(
       Prob.Covariate.ShortEvent(
         t0, tau, cbind(formatted_data, ts_df, Z_df)
