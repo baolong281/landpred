@@ -30,12 +30,13 @@ Prob.Null <- function(t0, tau, data, weight=NULL, newdata = NULL) {
     }
 
 	  return(
-	    new_landpred_result(
+	    new_landpred_result_discrete(
 	      Prob=Prob,
 	      data=data,
 	      newdata=newdata,
 	      t0=t0,
-	      tau=tau
+	      tau=tau,
+	      mode="no-covariate"
 	    )
 	  )
 }
@@ -120,12 +121,13 @@ Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NUL
 	if (!short) {
 	  names(data) = c("XL", "DL", "Z", "Probability")
 	}
-	return(new_landpred_result(
+	return(new_landpred_result_discrete(
 	  Prob = covariate.results,
 	  data = data,
 	  newdata = newdata,
 	  t0=t0,
-	  tau=tau
+	  tau=tau,
+	  mode="single-covariate"
 	))
   }
 
@@ -182,12 +184,13 @@ Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NU
 	data=as.data.frame(data)
 	names(data) = c("XL", "DL", "XS", "DS", "Z", "Probability")
 	# return(list("data" = data, "newdata" = newdata))
-	return(new_landpred_result(
+	return(new_landpred_result_discrete(
 	  Prob = NULL,
 	  data = data,
 	  newdata = newdata,
 	  t0=t0,
-	  tau=tau
+	  tau=tau,
+	  mode="short-covariate"
 	))
 }
 

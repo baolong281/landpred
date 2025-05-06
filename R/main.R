@@ -29,6 +29,7 @@ landpred <- function(formula, data, discrete=FALSE) {
 
   x_s <- NULL
   x_s_name <- NULL
+  d_s_name <- NULL
   if(length(rhs_survival_terms) != 0) {
     x_s <- if (!is.null(short_cov)) mf[[short_cov]] else NULL
     short_expr <- attr(tf, "variables")[[rhs_survival_terms[[1]] + 1]]
@@ -113,7 +114,39 @@ predict.landpred_model_discrete <- function(object, newdata = NULL, ...) {
 
 print.landpred_model_discrete <- function(x, ...) {
   old_landpred_result <- get_old_landpred_results_discrete(x$landpred_obj, x$t0, x$tau)
-  print(old_landpred_result)
+
+  model_name <- ""
+  model_prob_formula <- ""
+
+  if(old_landpred_result$mode == "no-covariate") {
+    model_name <- "No Discrete covariate + no short covariate"
+    model_prob_formula <- "P(TL < t0 + tau)"
+  } else if (old_landpred_result$mode == "single-covariate") {
+    model_name <- "Discrete covariate + no short covariate"
+    model_prob_formula <- "P(TL < t0 + tau|Z=z)"
+  } else {
+    model_name <- "Discrete covariate + short covariate"
+    model_prob_formula <- "P(TL < t0 + tau|Z=z,T_s=t_s)"
+  }
+
+  cat(sprintf("\nDiscrete Landpred Model (%s):\n", model_name))
+  print(x$landpred_obj)
+  cat("\n")
+
+  Probs <- old_landpred_result$Prob
+  if(is.matrix(Probs)) {
+    cat("Probs:\n")
+    apply(Probs, 1, function(row) {
+      cat(sprintf("P(TL < t0+tau|Z=%d): %.3f\n", row[1], row[2]))
+    })
+    cat("\n")
+  } else if (!is.null(Probs)) {
+    cat("Probs:\n")
+    cat(sprintf("%s: %.3f", model_prob_formula, Probs))
+    cat("\n\n")
+  }
+
+  cat(sprintf("t0: %-10.3f tau: %-10.3f", x$t0, x$tau))
 }
 
 bob <- function(x, ...) {

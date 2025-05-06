@@ -269,22 +269,10 @@ coef.landpred_model_continuous <- function(object, t_s=NULL, ...) {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+print.landpred_model_continuous <- function(x, ...) {
+  cat("\nContinuous Landpred Model:\n")
+  cat("Call coef() or summary() with t_s to see coefficients.\n")
+  print(x$landpred_obj)
+  cat("\n")
+  cat(sprintf("t0: %-10.3f tau: %-10.3f", x$t0, x$tau))
+}

@@ -1,8 +1,11 @@
-new_landpred_result <- function(
-    Prob=numeric(), data=numeric(), newdata=NA,
+# Internal class to hold landpred information for discrete setting
+# mode can be either no-covariate, single-covariate, or short-covariate
+new_landpred_result_discrete <- function(
+    mode, Prob=numeric(), data=numeric(), newdata=NA,
     t0=numeric(), tau=numeric()
     ) {
 
+  # Prob can be null, as short-covariate mode does not return it currently
   stopifnot(is.numeric(t0))
   stopifnot(is.numeric(tau))
 
@@ -12,22 +15,9 @@ new_landpred_result <- function(
       data=data,
       newdata=newdata,
       t0=t0,
-      tau=tau
+      tau=tau,
+      mode=mode
     ),
-    class = "landpred_result"
+    class = "landpred_result_discrete"
   )
-}
-
-print.landpred_result <- function(x, ...) {
-  cat("\nLandpred Results:\n\n")
-  if(is.matrix(x$Prob)) {
-    apply(x$Prob, 1, function(row) {
-      cat(sprintf("P(TL < t0+tau|Z=%d): %.3f\n", row[1], row[2]))
-    })
-  } else {
-    cat(sprintf("P(TL < t0+tau): %.3f", x$Prob))
-  }
-
-  cat("\n\n")
-  cat(sprintf("t0: %-10.3f tau: %-10.3f", x$t0, x$tau))
 }
