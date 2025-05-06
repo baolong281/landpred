@@ -23,11 +23,18 @@ landpred <- function(formula, data, discrete=FALSE) {
   x_l <- model.response(mf)
   response_expr <- attr(tf, "variables")[[attr(tf, "response") + 1]]
   x_l_name <- deparse(response_expr[[2]])
-  t_d_name <- deparse(response_expr[[3]])
 
-  x_s <- if (!is.null(short_cov)) mf[[short_cov]] else NULL
-  short_expr <- attr(tf, "variables")[[rhs_survival_terms[[1]] + 1]]
-  x_s_name <- deparse(short_expr[[2]])
+  # delta for long covariate
+  d_l_name <- deparse(response_expr[[3]])
+
+  x_s <- NULL
+  x_s_name <- NULL
+  if(length(rhs_survival_terms) != 0) {
+    x_s <- if (!is.null(short_cov)) mf[[short_cov]] else NULL
+    short_expr <- attr(tf, "variables")[[rhs_survival_terms[[1]] + 1]]
+    x_s_name <- deparse(short_expr[[2]])
+    d_s_name <- deparse(short_expr[[3]])
+  }
 
   if(!inherits(x_l, "Surv") || (!is.null(x_s) && !inherits(x_s, "Surv"))) {
     stop("Response variable and short-term covariate must a survival object.")
@@ -44,12 +51,13 @@ landpred <- function(formula, data, discrete=FALSE) {
 
   names <- list(
     x_l_name = x_l_name,
-    x_d_name = t_d_name,
+    d_l_name = d_l_name,
     x_s_name = x_s_name,
+    d_s_name = d_s_name,
     covariates=covariates
   )
 
-  new_landpred_model(
+  new_landpred_object(
     x_l,
     x_s,
     Z,
@@ -60,62 +68,122 @@ landpred <- function(formula, data, discrete=FALSE) {
 }
 
 # Create new landpred model
-new_landpred_model <- function(x_l, x_s, Z, formula, names, discrete=FALSE) {
+new_landpred_object <- function(x_l, x_s, Z, formula, names, discrete) {
   structure(
     list(
       X_L = x_l, X_S = x_s, Z = Z, formula = formula, discrete = discrete,
       names=names
     ),
-    class="landpred_model"
+    class="landpred_object"
   )
 }
 
-print.landpred_model <- function(x, ...) {
+print.landpred_object <- function(x, ...) {
   cat("\nCall:\n")
   cat("landpred(formula = ", deparse(x$formula), ")\n", sep="")
 }
 
-predict.landpred_model <- function(object, t0, tau, ...) {
-  if(object$discrete == TRUE) {
-      return(handle_discrete_pred(object, t0, tau))
+get_model <- function(landpred_obj, t0, tau, bw=NULL, transform=identity) {
+  if(landpred_obj$discrete == FALSE) {
+    glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
+    model <- new_landpred_model_continuous(
+      landpred_obj, glm_noinfo, t0, tau, bw,
+      transform
+    )
+  } else {
+    model <- new_landpred_model_discrete(landpred_obj, t0, tau)
   }
-  stop("CONTINUOUS NOT IMPLEMENTED YET!!!!")
+  model
 }
 
-handle_discrete_pred <- function(model, t0, tau) {
-  # format data to pass into old landpred functions
-  x_l <- model$x_l
-  x_s <- model$x_s
-  Z <- model$Z
+new_landpred_model_discrete <- function(landpred_obj, t0, tau) {
+  structure(
+    list(
+      landpred_obj = landpred_obj,
+      t0 = t0,
+      tau = tau
+    ),
+    class = "landpred_model_discrete"
+  )
+}
 
-  formatted_data <- data.frame(XL = as.numeric(x_l[, "time"]), DL =  as.numeric(x_l[, "status"]) )
+predict.landpred_model_discrete <- function(object, newdata = NULL, ...) {
+  handle_discrete_pred(object$landpred_obj, object$t0, object$tau, newdata)
+}
 
-  if(!is.null(Z)) {
-    Z_df <- data.frame(Z=Z)
-  }
+print.landpred_model_discrete <- function(x, ...) {
+  old_landpred_result <- get_old_landpred_results_discrete(x$landpred_obj, x$t0, x$tau)
+  print(old_landpred_result)
+}
 
-  if(!is.null(x_s)) {
-    ts_df <- data.frame(
+bob <- function(x, ...) {
+  old_landpred_result <- get_old_landpred_results_discrete(x$landpred_obj, x$t0, x$tau)
+  old_landpred_result
+}
+
+handle_discrete_pred <- function(landpred_obj, t0, tau, newdata) {
+  old_landpred_result <- get_old_landpred_results_discrete(landpred_obj, t0, tau, newdata)
+  probs <- old_landpred_result$newdata[, "Probability", drop = TRUE]
+  probs
+}
+
+# Wrapper around old landpred functions
+# Given a landpred object we call the aproppriate old function
+get_old_landpred_results_discrete <- function(landpred_obj, t0, tau, newdata = NULL) {
+  x_l <- landpred_obj$X_L
+  x_s <- landpred_obj$X_S
+  Z   <- landpred_obj$Z
+  names_list <- landpred_obj$names
+
+  formatted_data <- data.frame(
+    XL = as.numeric(x_l[, "time"]),
+    DL = as.numeric(x_l[, "status"])
+  )
+
+  # Build these dataframes if we have Z and X_S
+  # ts=xs, but i dont feel like changing the naming
+  Z_df <- if (!is.null(Z)) data.frame(Z = Z) else NULL
+  ts_df <- if (!is.null(x_s)) {
+    data.frame(
       XS = as.numeric(x_s[, "time"]),
       DL = as.numeric(x_s[, "status"])
     )
+  } else NULL
+
+  # Format newdata if present
+  newdata_formatted <- if (!is.null(newdata)) {
+    data.frame(
+      XL = newdata[, names_list[["x_l_name"]], drop = TRUE],
+      DL = newdata[, names_list[["d_l_name"]], drop = TRUE]
+    )
+  } else NULL
+
+  newdata_ts_df <- if (!is.null(newdata) && !is.null(x_s)) {
+    data.frame(
+      XS = newdata[, names_list[["x_s_name"]], drop = TRUE],
+      DL = newdata[, names_list[["d_s_name"]], drop = TRUE]
+    )
+  } else NULL
+
+  newdata_Z_df <- if (!is.null(newdata) && !is.null(Z)) {
+    data.frame(Z = newdata[, names_list[["covariates"]], drop = TRUE])
+  } else NULL
+
+  # Get the result based if we have X_s or Z, etc...
+  # Optionally pass in newdata if we do not have it.
+  result <- if (is.null(x_s) && is.null(Z)) {
+    do.call(Prob.Null, list(t0, tau, formatted_data,
+                            if (!is.null(newdata_formatted)) list(newdata = newdata_formatted) else list()))
+  } else if (is.null(x_s)) {
+    do.call(Prob.Covariate, c(list(
+      t0, tau, cbind(formatted_data, Z_df), short = FALSE),
+      if (!is.null(newdata)) list(newdata = cbind(newdata_formatted, newdata_Z_df)) else list()))
+  } else {
+    do.call(Prob.Covariate.ShortEvent, c(list(
+      t0, tau, cbind(formatted_data, ts_df, Z_df)),
+      if (!is.null(newdata)) list(newdata = cbind(newdata_formatted, newdata_ts_df, newdata_Z_df)) else list()))
   }
 
-  if(is.null(x_s) && is.null(Z)) {
-    return(Prob.Null(t0, tau, formatted_data))
-  } else if (is.null(x_s) && !is.null(Z)) {
-    return(
-      Prob.Covariate(
-        t0, tau, cbind(formatted_data, Z_df), short=FALSE
-      )
-    )
-  } else if(!is.null(x_s) && is.null(Z)) {
-    return(
-      Prob.Covariate.ShortEvent(
-        t0, tau, cbind(formatted_data, ts_df, Z_df)
-      )
-    )
-  }
-
-  stop("We are not supposed to be here.")
+  return(result)
 }
+

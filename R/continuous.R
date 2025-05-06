@@ -76,7 +76,7 @@ fit_glm_normal <-
     ts_formula <-
       paste("X_L < t0 + tau ~", paste(names(landpred_obj$Z), collapse = "+"))
 
-    ts_gt_subset <- get_normal_subset_indexes(landpred_obj, t0)
+    ts_gt_subset <- get_subset_indexes_noinfo(landpred_obj, t0)
     subset_gt_t0 <- subset_and_format_df(landpred_obj, ts_gt_subset)
 
     # fit as quasibinomial to suppress warnings about non-integer successes
@@ -92,7 +92,7 @@ fit_glm_normal <-
 
 # fit glm with kernel weights and information on short covariate
 fit_short_glm <-
-  function(landpred_obj, t0, tau, t_s, bw, transform = identity) {
+  function(landpred_obj, t0, tau, t_s, bw, transform) {
     ts_formula <-
       paste("X_L < t0 + tau ~", paste(names(landpred_obj$Z), collapse = "+"))
 
@@ -111,12 +111,13 @@ fit_short_glm <-
   }
 
 
-handle_continuous_pred <- function(model, newdata, transform=identity) {
+handle_continuous_pred <- function(model, newdata) {
   landpred_obj <- model$landpred_obj
   t0 <- model$t0
   tau <- model$tau
   bw <- model$bw
   glm_noinfo <- model$glm_noinfo
+  transform <- model$transform
 
   formatted_data <- newdata[, landpred_obj$names[["covariates"]], drop=FALSE]
 
@@ -156,7 +157,6 @@ estimate_coefficient_variance <-
            specified_glm,
            data_indexes,
            samples,
-           transform = identity,
            kernel_weight = NULL) {
 
   landpred_obj <- model$landpred_obj
@@ -208,8 +208,8 @@ estimate_coefficient_variance <-
 coefficient_confint <-
   function(model,
            t_s,
-           samples = 500,
-           transform = identity) {
+           samples = 500
+           ) {
     boot_vectors <- NULL
     if (t_s > model$t0) {
       subset_indexes <-
@@ -218,6 +218,7 @@ coefficient_confint <-
         estimate_coefficient_variance(model, model$glm_noinfo, subset_indexes,
                                       samples)
     } else {
+      transform <- model$transform
       subset_indexes <-
         get_subset_indexes_short(model$landpred_obj, model$t0)
       glm_short <-
@@ -231,36 +232,38 @@ coefficient_confint <-
     boot_vectors
   }
 
-get_model <- function(landpred_obj, t0, tau, bw) {
+get_model <- function(landpred_obj, t0, tau, bw, transform=identity) {
   glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
   new_landpred_model_continuous(
-    landpred_obj, glm_noinfo, t0, tau, bw
+    landpred_obj, glm_noinfo, t0, tau, bw,
+    transform
   )
 }
 
-new_landpred_model_continuous <- function(landpred_obj, glm_noinfo, t0, tau, bw) {
+new_landpred_model_continuous <- function(landpred_obj, glm_noinfo, t0, tau, bw, transform) {
   structure(
     list(
       landpred_obj=landpred_obj,
       glm_noinfo=glm_noinfo,
       t0=t0,
       tau=tau,
-      bw=bw
+      bw=bw,
+      transform=transform
     ),
     class = "landpred_model_continuous"
   )
 }
 
-predict.landpred_model_continuous <- function(object, newdata=NULL, type="response", transform=identity) {
-  handle_continuous_pred(object, newdata, transform)
+predict.landpred_model_continuous <- function(object, newdata=NULL, type="response") {
+  handle_continuous_pred(object, newdata)
 }
 
-coef.landpred_model_continuous <- function(object, t_s=NULL, transform=identity, ...) {
+coef.landpred_model_continuous <- function(object, t_s=NULL, ...) {
   if(is.null(t_s) || t_s > model$t0) {
     return(coef(object$glm_noinfo))
   } else {
     glm_shortinfo <- fit_short_glm(
-      object$landpred_obj, object$t0, object$tau, t_s, object$bw, transform
+      object$landpred_obj, object$t0, object$tau, t_s, object$bw, object$transform
     )
     return(coef(glm_shortinfo))
   }

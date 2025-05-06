@@ -181,7 +181,14 @@ Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NU
 	data = cbind(data[,c(1:2)], exp(data[,3]), data[,c(4:5)], data.column)
 	data=as.data.frame(data)
 	names(data) = c("XL", "DL", "XS", "DS", "Z", "Probability")
-	return(list("data" = data, "newdata" = newdata))
+	# return(list("data" = data, "newdata" = newdata))
+	return(new_landpred_result(
+	  Prob = NULL,
+	  data = data,
+	  newdata = newdata,
+	  t0=t0,
+	  tau=tau
+	))
 }
 
 prob2.single= function(K,W2i,Xi.long,tau,Di.short,Xi.short, Zi, t0,covariate.value) {

@@ -3,7 +3,6 @@ new_landpred_result <- function(
     t0=numeric(), tau=numeric()
     ) {
 
-  stopifnot(is.numeric(Prob))
   stopifnot(is.numeric(t0))
   stopifnot(is.numeric(tau))
 
