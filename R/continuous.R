@@ -52,6 +52,23 @@ kernel_func <- function(x, bw) {
   dnorm(x / bw) / bw
 }
 
+# Subset of the data used to fit model with no info on short covariate
+get_subset_indexes_noinfo <- function(landpred_obj, t0) {
+  if (!is.null(landpred_obj$X_S)) {
+    subset_indexes <- pmin(landpred_obj$X_L[, "time"], landpred_obj$X_S[, "time"]) > t0
+  } else {
+    subset_indexes <- landpred_obj$X_L[, "time"] > t0
+  }
+  subset_indexes
+}
+
+# Subset of the data used to fit model with information on short covariate
+# maybe have to check if it was also censored?
+get_subset_indexes_short <- function(landpred_obj, t0) {
+  subset_indexes <- landpred_obj$X_S[, "time"] < t0 & landpred_obj$X_L[, "time"] > t0
+  subset_indexes
+}
+
 # Linear model for t0 + tau where our given t_s < t0
 # no information on short covariate
 fit_glm_normal <-
@@ -59,12 +76,7 @@ fit_glm_normal <-
     ts_formula <-
       paste("X_L < t0 + tau ~", paste(names(landpred_obj$Z), collapse = "+"))
 
-    if (!is.null(landpred_obj$X_S)) {
-      ts_gt_subset <- pmin(landpred_obj$X_L[, "time"], landpred_obj$X_S[, "time"]) > t0
-    } else {
-      ts_gt_subset <- landpred_obj$X_L[, "time"] > t0
-    }
-
+    ts_gt_subset <- get_normal_subset_indexes(landpred_obj, t0)
     subset_gt_t0 <- subset_and_format_df(landpred_obj, ts_gt_subset)
 
     # fit as quasibinomial to suppress warnings about non-integer successes
@@ -84,9 +96,7 @@ fit_short_glm <-
     ts_formula <-
       paste("X_L < t0 + tau ~", paste(names(landpred_obj$Z), collapse = "+"))
 
-    # maybe have to check if it was also censored?
-    ts_lt_subset <- landpred_obj$X_S[, "time"] < t0 & landpred_obj$X_L[, "time"] > t0
-
+    ts_lt_subset <- get_subset_indexes_short(landpred_obj, t0)
     subset_lt_t0 <- subset_and_format_df(landpred_obj, ts_lt_subset)
 
     model <- glm(
@@ -140,32 +150,39 @@ handle_continuous_pred <- function(model, newdata, transform=identity) {
  response
 }
 
-handle_continuous_confint_short
-
 # confidence interval for short info model
-handle_continuous_confint <- function(model, t_s, transform=identity, samples=200) {
+estimate_coefficient_variance <-
+  function(model,
+           specified_glm,
+           data_indexes,
+           samples,
+           transform = identity,
+           kernel_weight = NULL) {
+
   landpred_obj <- model$landpred_obj
 
-  glm_shortinfo <- fit_short_glm(landpred_obj, model$t0, model$tau, t_s, model$bw)
-
-  baseline_coef <- coef(glm_shortinfo)
+  baseline_coef <- coef(specified_glm)
 
   # number of observations
-  N <- nobs(glm_shortinfo)
+  N <- nobs(specified_glm)
 
   # bootstrap weights
   V = matrix(rexp(N * samples), nrow=N)
 
-  subset_indexes <- landpred_obj$X_S[, "time"] < model$t0 & landpred_obj$X_L[, "time"] > model$t0
-  data <- subset_and_format_df(landpred_obj, subset_indexes)
-  Z <- data[, colnames(landpred_obj$Z), drop=FALSE]
+  data <- subset_and_format_df(landpred_obj, data_indexes)
+  Z <- cbind(1, data[, colnames(landpred_obj$Z), drop=FALSE])
 
-  kernel_weight <- kernel_func(transform(data$X_S) - transform(t_s), bw=model$bw)
-  diff_term <- (data$X_L  <= model$t0 + model$tau) - predict(
-    glm_shortinfo, newdata=data, type="response"
+  # Set default kernel weight if not specified, i.e. we are estimating
+  # coefficients for the model with no short info
+  if(is.null(kernel_weight)) {
+    kernel_weight <- rep(1, N)
+  }
+
+  diff_term <- 1 * (data$X_L  <= model$t0 + model$tau) - predict(
+    specified_glm, newdata=data, type="response"
   )
 
-  A <- vcov(glm_shortinfo)
+  A <- vcov(specified_glm)
 
   pertubations_S <- apply(V, MARGIN = 2, function(V_vec) {
     W_L <- w_i(data$X_L, data$X_D, model$t0, model$tau, weights=V_vec)
@@ -177,20 +194,42 @@ handle_continuous_confint <- function(model, t_s, transform=identity, samples=20
 
   pertubations_S <- cbind(1, pertubations_S)
 
-  step_terms <- t(apply(pertubations_S, MARGIN=1, function(row) {
-    A %*% row
-  }))
+  step_terms <- apply(pertubations_S, MARGIN=2, function(col) {
+    A %*% col
+  })
 
-  boot_vectors <- apply(step_terms, MARGIN = 1, function(row) {
-    row + baseline_coef
+  boot_vectors <- apply(step_terms, MARGIN = 2, function(vec) {
+    t(vec) + baseline_coef
   })
 
   t(boot_vectors)
 }
 
-continuous_confint_noinfo <- function(model, samples) {
-
-}
+coefficient_confint <-
+  function(model,
+           t_s,
+           samples = 500,
+           transform = identity) {
+    boot_vectors <- NULL
+    if (t_s > model$t0) {
+      subset_indexes <-
+        get_subset_indexes_noinfo(model$landpred_obj, model$t0)
+      boot_vectors <-
+        estimate_coefficient_variance(model, model$glm_noinfo, subset_indexes,
+                                      samples)
+    } else {
+      subset_indexes <-
+        get_subset_indexes_short(model$landpred_obj, model$t0)
+      glm_short <-
+        fit_short_glm(model$landpred_obj, model$t0, model$tau, t_s, model$bw)
+      kernel_weight <-
+        kernel_func(transform(model$landpred_obj[["X_S"]][subset_indexes, "time"]) - transform(t_s), bw  = model$bw)
+      boot_vectors <-
+        estimate_coefficient_variance(model, glm_short, subset_indexes,
+                                      samples, kernel_weight = kernel_weight)
+    }
+    boot_vectors
+  }
 
 get_model <- function(landpred_obj, t0, tau, bw) {
   glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
@@ -221,7 +260,7 @@ coef.landpred_model_continuous <- function(object, t_s=NULL, transform=identity,
     return(coef(object$glm_noinfo))
   } else {
     glm_shortinfo <- fit_short_glm(
-      object$model, object$t0, object$tau, t_s, object$bw, transform
+      object$landpred_obj, object$t0, object$tau, t_s, object$bw, transform
     )
     return(coef(glm_shortinfo))
   }
