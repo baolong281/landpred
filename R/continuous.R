@@ -12,7 +12,7 @@ kaplan_maier <- function(times, X, deltas, type="fl", weights=NULL) {
 }
 
 # weight function
-w_i <- function(x_l, x_d, t0, tau) {
+w_i <- function(x_l, x_d, t0, tau, weights=NULL) {
   output <- rep(0, length(x_l))
 
   term_1_indexes <-
@@ -24,7 +24,7 @@ w_i <- function(x_l, x_d, t0, tau) {
 
   kaplan_probs <- kaplan_maier(
     c(x_l[term_1_indexes], t0 + tau),
-    x_l, x_d
+    x_l, x_d, weights=weights
   )
 
   output[term_1_indexes] <- (1 * x_d[term_1_indexes]) /
@@ -140,14 +140,52 @@ handle_continuous_pred <- function(model, newdata, transform=identity) {
  response
 }
 
-handle_continuous_confint <- function(model, t_s, samples=200) {
-  glm_shortinfo <- fit_short_glm(model, model$t0, model$tau, t_s, model$bw)
+handle_continuous_confint_short
+
+# confidence interval for short info model
+handle_continuous_confint <- function(model, t_s, transform=identity, samples=200) {
+  landpred_obj <- model$landpred_obj
+
+  glm_shortinfo <- fit_short_glm(landpred_obj, model$t0, model$tau, t_s, model$bw)
+
+  baseline_coef <- coef(glm_shortinfo)
+
   # number of observations
   N <- nobs(glm_shortinfo)
 
   # bootstrap weights
   V = matrix(rexp(N * samples), nrow=N)
 
+  subset_indexes <- landpred_obj$X_S[, "time"] < model$t0 & landpred_obj$X_L[, "time"] > model$t0
+  data <- subset_and_format_df(landpred_obj, subset_indexes)
+  Z <- data[, colnames(landpred_obj$Z), drop=FALSE]
+
+  kernel_weight <- kernel_func(transform(data$X_S) - transform(t_s), bw=model$bw)
+  diff_term <- (data$X_L  <= model$t0 + model$tau) - predict(
+    glm_shortinfo, newdata=data, type="response"
+  )
+
+  A <- vcov(glm_shortinfo)
+
+  pertubations_S <- apply(V, MARGIN = 2, function(V_vec) {
+    W_L <- w_i(data$X_L, data$X_D, model$t0, model$tau, weights=V_vec)
+
+    final_weighting <- W_L * kernel_weight * diff_term * V_vec
+    weighted_vectors <- Z * final_weighting
+    colSums(weighted_vectors)
+  })
+
+  pertubations_S <- cbind(1, pertubations_S)
+
+  step_terms <- t(apply(pertubations_S, MARGIN=1, function(row) {
+    A %*% row
+  }))
+
+  boot_vectors <- apply(step_terms, MARGIN = 1, function(row) {
+    row + baseline_coef
+  })
+
+  t(boot_vectors)
 }
 
 continuous_confint_noinfo <- function(model, samples) {
