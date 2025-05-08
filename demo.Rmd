@@ -1,0 +1,59 @@
+```{r}
+library(survival)
+library(landpred)
+
+data <- data.frame(
+  a = runif(1000),
+  b = runif(1000),
+  c = runif(1000),
+  d = runif(1000) * 2,
+  a_d = rep(1, 1000),
+  b_d = rep(0, 1000),
+  discrete = sample(c(1, 2, 3), 1000, replace=TRUE)
+)
+```
+
+# Predictions with discrete model
+
+```{r}
+discrete_landpred <- landpred(Surv(a, a_d) ~ discrete + Surv(b, b_d), discrete=TRUE, data=data)
+summary(discrete_landpred)
+```
+
+```{r}
+discrete_model <- get_model(discrete_landpred, t0=0.30, tau=0.40)
+discrete_model
+```
+
+```{r}
+discrete_landpred <- landpred(Surv(a, a_d) ~ discrete, discrete=TRUE, data=data)
+discrete_model <- get_model(discrete_landpred, t0=0.30, tau=0.40)
+discrete_model
+```
+
+```{r}
+preds <- predict(discrete_model, newdata=data[1:200, , drop=FALSE])
+head(preds)
+```
+
+# Working with continuous model
+
+```{r}
+landpred_continuous <- landpred(Surv(a, a_d) ~ c + b + Surv(b, b_d), data=data)
+summary(landpred_continuous)
+```
+
+```{r}
+model <- get_model(landpred_continuous, t0=0.40, tau=0.30, bw=1.5, transform=log)
+summary(model)
+```
+
+```{r}
+summary(model, t_s=0.30)
+```
+
+
+```{r}
+preds <- predict(model, newdata=data[1:200, , drop=FALSE])
+head(preds)
+```

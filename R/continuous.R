@@ -205,13 +205,13 @@ estimate_coefficient_variance <-
   t(boot_vectors)
 }
 
-coefficient_confint <-
+coefficient_se <-
   function(model,
-           t_s,
-           samples = 500
+           t_s=NULL,
+           samples = 200
            ) {
     boot_vectors <- NULL
-    if (t_s > model$t0) {
+    if (is.null(t_s) || t_s > model$t0) {
       subset_indexes <-
         get_subset_indexes_noinfo(model$landpred_obj, model$t0)
       boot_vectors <-
@@ -222,15 +222,16 @@ coefficient_confint <-
       subset_indexes <-
         get_subset_indexes_short(model$landpred_obj, model$t0)
       glm_short <-
-        fit_short_glm(model$landpred_obj, model$t0, model$tau, t_s, model$bw)
+        fit_short_glm(model$landpred_obj, model$t0, model$tau, t_s, model$bw, model$transform)
       kernel_weight <-
         kernel_func(transform(model$landpred_obj[["X_S"]][subset_indexes, "time"]) - transform(t_s), bw  = model$bw)
       boot_vectors <-
         estimate_coefficient_variance(model, glm_short, subset_indexes,
                                       samples, kernel_weight = kernel_weight)
     }
-    boot_vectors
-  }
+    std_errors <- apply(boot_vectors, MARGIN=2, function(col) sd(col))
+    setNames(std_errors, names(coef(model$glm_noinfo)))
+}
 
 get_model <- function(landpred_obj, t0, tau, bw, transform=identity) {
   glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
@@ -275,4 +276,35 @@ print.landpred_model_continuous <- function(x, ...) {
   print(x$landpred_obj)
   cat("\n")
   cat(sprintf("t0: %-10.3f tau: %-10.3f", x$t0, x$tau))
+}
+
+summary.landpred_model_continuous <- function(object, t_s = NULL, ...) {
+  cat("\nContinuous Landpred Model:\n\n")
+
+  t_s_message <- if (is.null(t_s)) "No short covariate" else sprintf("t_s=%f", t_s)
+  cat(sprintf("Coefficients (%s):\n", t_s_message))
+
+  # Choose model
+  glm_fit <-
+    if (is.null(t_s) ||
+        t_s > object$t0)
+      object$glm_noinfo
+  else
+    fit_short_glm(object$landpred_obj, object$t0, object$tau, t_s, object$bw, object$transform)
+
+  coef_est <- coef(glm_fit)
+
+  se <- coefficient_se(object, t_s)
+
+  coef_table <- data.frame(
+    Estimate = coef_est,
+    `Std. Error` = se,
+    check.names = FALSE
+  )
+
+  printCoefmat(coef_table, P.values = FALSE, has.Pvalue = FALSE)
+  cat("---\n")
+  cat(sprintf("Fit on n=%d observations.\n", nobs(glm_fit)))
+
+  cat(sprintf("\nt0: %-10.3f tau: %-10.3f\n", object$t0, object$tau))
 }

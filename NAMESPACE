@@ -2,5 +2,11 @@ importFrom(survival, survfit, Surv, coxph)
 importFrom(stats, bw.nrd, dnorm, optimize)
 
 exportPattern("^[[:alpha:]]+")
-S3method("print", "landpred_result")
-
+S3method("summary", "landpred_model_continuous")
+S3method("print", "landpred_model_continuous")
+S3method("coef", "landpred_model_continuous")
+S3method("predict", "landpred_model_continuous")
+S3method("print", "landpred_model_discrete")
+S3method("predict", "landpred_model_discrete")
+S3method("print", "landpred_object")
+S3method("summary", "landpred_object")

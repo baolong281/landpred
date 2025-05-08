@@ -42,7 +42,13 @@ landpred <- function(formula, data, discrete=FALSE) {
   }
 
   covariates <- attr(tf, "term.labels")
+
+  if(length(covariates) == 1 && !is.null(x_s)) {
+    stop("Normal covariate must be provided with short term covariate")
+  }
+
   covariates <- covariates[!(covariates %in% c(short_cov))]
+
 
   Z <- mf[, covariates, drop=FALSE]
 
@@ -82,6 +88,14 @@ new_landpred_object <- function(x_l, x_s, Z, formula, names, discrete) {
 print.landpred_object <- function(x, ...) {
   cat("\nCall:\n")
   cat("landpred(formula = ", deparse(x$formula), ")\n", sep="")
+}
+
+summary.landpred_object <- function(object, ...) {
+  cat("\nLandpred Object Summary\n")
+  cat("Call get_model() to get time-specific model for t0 + tau\n\n")
+  cat("Call:\n")
+  cat("landpred(formula = ", deparse(object$formula), ")\n\n", sep="")
+  cat(sprintf("Discrete: %-8s Short Covariate: %-8s N: %s\n", object$discrete, !is.null(object$X_S), length(object$X_L)))
 }
 
 get_model <- function(landpred_obj, t0, tau, bw=NULL, transform=identity) {
@@ -148,12 +162,6 @@ print.landpred_model_discrete <- function(x, ...) {
 
   cat(sprintf("t0: %-10.3f tau: %-10.3f", x$t0, x$tau))
 }
-
-bob <- function(x, ...) {
-  old_landpred_result <- get_old_landpred_results_discrete(x$landpred_obj, x$t0, x$tau)
-  old_landpred_result
-}
-
 handle_discrete_pred <- function(landpred_obj, t0, tau, newdata) {
   old_landpred_result <- get_old_landpred_results_discrete(landpred_obj, t0, tau, newdata)
   probs <- old_landpred_result$newdata[, "Probability", drop = TRUE]
