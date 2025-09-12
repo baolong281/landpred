@@ -1,35 +1,21 @@
-kaplan_maier <- function(times, X, deltas, type="fl", weights=NULL) {
-
-  # Default weights if not passed
-  if(!is.null(weights)) {
-    fit <- survfit(Surv(X, deltas) ~ 1, se.fit = F, type = type, weights=weights)
-  } else {
-    fit <- survfit(Surv(X, deltas) ~ 1, se.fit = F, type = type)
-  }
-
-  survival_probs <- summary(fit, times=times)$surv
-  survival_probs
-}
-
-# weight function
-w_i <- function(x_l, x_d, t0, tau, weights=NULL) {
+w_i <- function(x_l, x_d, t0, tau, weights = NULL) {
   output <- rep(0, length(x_l))
 
-  term_1_indexes <-
-    (x_l > t0) &
-    (x_l <= t0 + tau)
+  # index for (t0, t0+tau]
+  term_1_indexes <- (x_l > t0) & (x_l <= t0 + tau)
+  # index for > t0+tau
+  term_2_indexes <- (x_l > t0 + tau)
 
-  term_2_indexes <-
-    (x_l > t0 + tau)
+  # match Wi.FUN exactly: construct tt0
+  tt0 <- c(x_l[term_1_indexes], t0 + tau)
 
-  kaplan_probs <- kaplan_maier(
-    c(x_l[term_1_indexes], t0 + tau),
-    x_l, x_d, weights=weights
-  )
+  # call Ghat.FUN just like in Wi.FUN
+  Ghat_tt0 <- Ghat.FUN(tt0, cbind(x_l, x_d), weight.given = weights)
 
-  output[term_1_indexes] <- (1 * x_d[term_1_indexes]) /
-    kaplan_probs[-length(kaplan_probs)]
-  output[term_2_indexes] <- 1 / kaplan_probs[length(kaplan_probs)]
+  # assign weights
+  output[term_2_indexes] <- 1 / Ghat_tt0[length(tt0)]
+  output[term_1_indexes] <- x_d[term_1_indexes] / Ghat_tt0[-length(tt0)]
+
   output
 }
 
@@ -60,6 +46,12 @@ get_subset_indexes_noinfo <- function(landpred_obj, t0) {
     subset_indexes <- landpred_obj$X_L[, "time"] > t0
   }
   subset_indexes
+}
+
+get_subset_indexes_noinfo <- function(landpred_obj, t0) {
+  # Should match old logic: X_L > t0 (not pmin)
+  subset_indexes <- landpred_obj$X_L[, "time"] > t0
+  return(subset_indexes)
 }
 
 # Subset of the data used to fit model with information on short covariate

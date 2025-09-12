@@ -1,6 +1,5 @@
 # Main landpred function
 # Take a formula parse then return landpred model object we can call predict, etc... on
-# probably capitalize vectors later, forgot to capializte when doing find + replace
 landpred <- function(formula, data, discrete=FALSE) {
 
   tf <- terms(formula, specials=c("Surv"))
