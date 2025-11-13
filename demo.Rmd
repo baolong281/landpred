@@ -1,59 +1,135 @@
-```{r}
-library(survival)
-library(landpred)
+---
+title: "Tutorial for main functions in landpred package"
+author: "Your Name"
+date: "2025-01-03"
+output: html_document
+---
 
-data <- data.frame(
-  a = runif(1000),
-  b = runif(1000),
-  c = runif(1000),
-  d = runif(1000) * 2,
-  a_d = rep(1, 1000),
-  b_d = rep(0, 1000),
-  discrete = sample(c(1, 2, 3), 1000, replace=TRUE)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+```
+
+## Introduction
+This landpred package provides nonparametric models for landmark prediction of long-term survival outcomes, incorporating covariate and short-term event information. The package supports the construction of flexible varying-coefficient models that use discrete covariates, as well as multiple continuous covariates. The goal is to improve prediction accuracy when censored short-term events are available as predictors, using robust nonparametric procedures that don't require correct model specification and avoid restrictive parametric assumptions found in existing multistate survival methods. More information
+on these models can be found in Parast et al. (2012, Journal of the American Statistical Association, doi:10.1080/01621459.2012.721281), and 
+Parast et al. (2011, Biometrical Journal, https://doi.org/10.1002/bimj.201000150).
+
+## Generating Data
+
+We will generate a dataframe with two continuous covariates, $Z_1,Z_2$, and one
+discrete covariate, $B$. We will also have a censored short event $X_S$ and a censored
+long event, our outcome, $X_L$. 
+
+
+```{r}
+n <- 500
+# Generate covariates
+Z1 <- rnorm(n)
+Z2 <- rnorm(n)
+B <- rbinom(n, 1, 0.5)  # Binary discrete covariate
+
+# Generate event times based on exponential model
+X_L_raw <- rexp(n, rate = exp(-0.5 * Z1 + 0.3 * Z2 + 0.4 * B))
+X_S_raw <- rexp(n, rate = exp(0.2 * Z1 - 0.3 * Z2 - 0.3 * B))
+
+# Generate censoring times
+C_L <- runif(n, 2, 8)  # censoring for long event
+C_S <- runif(n, 1, 4)  # censoring for short event
+
+# Apply censoring
+X_L <- pmin(X_L_raw, C_L)
+D_L <- as.numeric(X_L_raw <= C_L)  # 1 if event, 0 if censored
+
+X_S <- pmin(X_S_raw, C_S)
+D_S <- as.numeric(X_S_raw <= C_S)  # 1 if event, 0 if censored
+
+# Return simple data frame
+df <- data.frame(
+  X_L = X_L,       # long event time
+  D_L = D_L,       # long event indicator
+  X_S = X_S,       # short event time
+  D_S = D_S,       # short event indicator
+  Z1 = Z1,         # continuous covariate 1
+  Z2 = Z2,         # continuous covariate 2
+  B = B            # discrete covariate
 )
 ```
 
-# Predictions with discrete model
+## Workflow
+
+The package exports the `landpred` function, which will construct a landpred object given a formula and data. 
+We can supply any number of continuous covariates to this, or a singular discrete covariate, as demonstrated below.
+Note that short term information needs to be wrapped in a `Surv` from the `survival` package. 
 
 ```{r}
-discrete_landpred <- landpred(Surv(a, a_d) ~ discrete + Surv(b, b_d), discrete=TRUE, data=data)
-summary(discrete_landpred)
+library(landpred)
+library(survival)
+
+# Create model with continuous covariates and short term information
+obj1 <- landpred(Surv(X_L, D_L) ~ Surv(X_S, D_S) + Z1 + Z2, data=df)
+
+# Create model with discrete marker and short term information
+# Notice the discrete flag is now enabled, which is false by default.
+obj2 <- landpred(Surv(X_L, D_L) ~ Surv(X_S, D_S) + B, data=df, discrete=TRUE)
+
+# Create model with discrete marker and no short term information
+# Notice the discrete flag is now enabled, which is false by default.
+obj3 <- landpred(Surv(X_L, D_L) ~  B, data=df, discrete=TRUE)
 ```
 
+We will proceed with the object with continuous covariates, and short-term information. We can call
+`summary` on this landpred object to get more information from it. Note this landpred object returned by the `landpred` call serves as a baseline object. To get a model for a specific time ande delta, we must call the `get_model` function on this object as specified in the `summary` function.
+Workflows / functions will be the same in the discrete and continuous case. 
+
 ```{r}
-discrete_model <- get_model(discrete_landpred, t0=0.30, tau=0.40)
-discrete_model
+summary(obj1)
 ```
 
+Our `get_model` function accepts a landpred object as input, and three required parameters, `t0`, `tau`, and `bw`. This returns
+a landmark prediction model for that specific time and delta. For the coefficients and standard errors of the coefficeints, we call `summary`
+on the returned model to get coefficients when no information in the short covariate is provided (has not occured yet). We can also provide `t_s` to this call to get coefficients for if the short event has occured yet.
+
+We must first choose our bandwidth value. We provide a utility to select this optimal value using K-fold 
+cross validations
+
 ```{r}
-discrete_landpred <- landpred(Surv(a, a_d) ~ discrete, discrete=TRUE, data=data)
-discrete_model <- get_model(discrete_landpred, t0=0.30, tau=0.40)
-discrete_model
+# t0 <- 0.5
+# tau <- 1.5
+# t_s <- 1
+# bw <- optimize_bw(obj1, tau, t_s)
+# bw
 ```
 
+ 
 ```{r}
-preds <- predict(discrete_model, newdata=data[1:200, , drop=FALSE])
-head(preds)
-```
+# Get model
+model <- get_model(obj1, t0=1, tau=1.5, bw=0.05)
 
-# Working with continuous model
-
-```{r}
-landpred_continuous <- landpred(Surv(a, a_d) ~ c + b + Surv(b, b_d), data=data)
-summary(landpred_continuous)
-```
-
-```{r}
-model <- get_model(landpred_continuous, t0=0.40, tau=0.30, bw=1.5, transform=log)
+# Summary with no short covariate
 summary(model)
 ```
 
 ```{r}
-summary(model, t_s=0.30)
+# Summary with short covariate
+summary(model, t_s=0.8)
 ```
 
+## Prediction
+
+We can also do prediction wiih this model to get survival probabilities for a given observation.
 
 ```{r}
-preds <- predict(model, newdata=data[1:200, , drop=FALSE])
-head(preds)
+probs <- predict(model, newdata=df[1:5, , drop=FALSE])
+probs
 ```
+
+
+
+
+ 
+
+
+
+
+

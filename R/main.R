@@ -46,6 +46,10 @@ landpred <- function(formula, data, discrete=FALSE) {
     stop("Normal covariate must be provided with short term covariate")
   }
 
+  if(!discrete && is.null(x_s)) {
+    stop("Short term covariate must be provded with multivariate continuous models")
+  }
+
   covariates <- covariates[!(covariates %in% c(short_cov))]
 
 

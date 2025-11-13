@@ -1,5 +1,5 @@
 importFrom(survival, survfit, Surv, coxph)
-importFrom(stats, bw.nrd, dnorm, optimize)
+importFrom(stats, bw.nrd, dnorm, optimize, glm)
 
 exportPattern("^[[:alpha:]]+")
 S3method("summary", "landpred_model_continuous")
