@@ -2,8 +2,8 @@ data <- data.frame(
   a = runif(1000),
   b = runif(1000),
   c = runif(1000),
-  discrete = rep(TRUE, 1000),
-  discrete2 = rep(TRUE, 1000),
+  discrete = sample(c(TRUE, FALSE), size = 1000, replace = TRUE),
+  discrete2 = sample(c(TRUE, FALSE), size = 1000, replace = TRUE),
   d = runif(1000) * 2,
   a_d = rep(1, 1000),
   b_d = rep(0, 1000)
@@ -11,8 +11,10 @@ data <- data.frame(
 
 test_that("creating landpred objects works as expected", {
 
-  obj_1 <- landpred(Surv(a, a_d) ~ c, data=data)
+  obj_1 <- landpred(Surv(a, a_d) ~ c, data=data, discrete=TRUE)
   expect_s3_class(obj_1, "landpred_object")
+
+  expect_error(landpred(Surv(a, a_d) ~ c, data=data, discrete=FALSE))
 
   obj_2 <- landpred(Surv(a, a_d) ~ c + Surv(b, b_d), data=data)
   expect_s3_class(obj_2, "landpred_object")

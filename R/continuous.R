@@ -34,7 +34,7 @@ loc.fun.ex <- function(t, data,tau, s, h, weight = NULL, transform=identity) {
   } else{
     W2i <- weight
   }
-  index.sub = data[,2] > tau & (transform(data[,1]) < log(tau)) & (data[,3] == 1)
+  index.sub = data[,2] > tau & (transform(data[,1]) < transform(tau)) & (data[,3] == 1)
   K = Kern.FUN.CONT(transform(X1i[index.sub]),t,h)
   est.mat = matrix(nrow=length(t), ncol = dim(as.matrix(Zi))[2] + 1)
   invinf.mat = matrix(nrow=length(t), ncol = (dim(as.matrix(Zi))[2] + 1)^2)
@@ -209,7 +209,7 @@ var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=i
 
   index.sub <- which(
     data.v[, 2] > tau &
-      transform(data.v[, 1]) < log(tau) &
+      transform(data.v[, 1]) < transform(tau) &
       data.v[, 3] == 1
   )
 
@@ -227,7 +227,7 @@ var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=i
 
   # Local estimation
   loc.m <- loc.fun.ex(
-    t   = X1i[index.sub],
+    t   = t,
     data = data.v,
     tau = tau,
     s   = s,
@@ -252,7 +252,7 @@ var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=i
   diff <- diff[valid_idx]
 
   # Kernel
-  K <- Kern.FUN.CONT(X1i[index.sub], t, h)
+  K <- Kern.FUN.CONT(transform(X1i[index.sub]), t, h)
 
   # Piece 1
   piece.1.int <- t(t(K) * (W2i[index.sub] * diff)) %*% t(vmat.c[, index.sub])
@@ -352,7 +352,6 @@ coefficient_se <-
       std_errors <- summary(model$glm_noinfo)$coefficients[, "Std. Error"]
       std_errors <- as.numeric(std_errors)
     } else {
-      transform <- model$transform
       # legacy formatted data
       df_formatted <-
         landpred_to_legacy_data(model$landpred_obj)
@@ -363,7 +362,7 @@ coefficient_se <-
         tau = model$t0,
         s = model$tau,
         h = model$bw,
-        transform = identity
+        transform = model$transform
       )
 
      size <- dim(df_formatted)[1]
@@ -376,7 +375,7 @@ coefficient_se <-
        h = model$bw,
        vmat = vmat,
        Ainv = fit$invinf,
-       transform = transform
+       transform = model$transform
      )
 
       std_errors <- c(var_results$int, var_results$sl)

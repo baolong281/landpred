@@ -12,13 +12,30 @@ bw <- 0.5
 set.seed(42)
 
 # ---------- Old functions to test ------------------
+loc.fun.ex.OLD <- function(t, data,tau, s, h, weight = NULL) {
+  X1i = data[,1]; X2i = data[,2]; D1i = data[,3]; D2i = data[,4]; Zi = data[,-c(1:4)]
+  if(is.null(weight))	{W2i <- Wi.FUN(X2i,data = cbind(X2i,D2i,Zi),t0=tau,tau=s)}
+  else{W2i=weight}
+  index.sub = data[,2] > tau & (data[,1] < log (tau)) & (data[,3] == 1)
+  K = Kern.FUN(X1i[index.sub],t,h)
+  est.mat = matrix(nrow=length(t), ncol = dim(as.matrix(Zi))[2] + 1)
+  invinf.mat = matrix(nrow=length(t), ncol = (dim(as.matrix(Zi))[2] + 1)^2)
+  tmpfm <- paste("1*(X2i< tau+s) ~ ", paste(names(Zi),collapse="+"))
+  for(i in 1:length(t)) {
+    m = glm(as.formula(tmpfm), data=data[index.sub,],  family = "binomial", weights = K[i,]*W2i[index.sub])
+    est.mat[i,] = m$coeff
+    invinf.mat[i,] = as.vector(vcov(m))
+  }
+  return(list("est.mat" = est.mat, "invinf.mat" = invinf.mat))
+}
+
 var.fun.ex9b <- function(t, data.v,tau, s, h, vmat, Ainv, weight=NULL) {
   length.t = length(t)
   X1i = data.v[,1]; X2i = data.v[,2]; D1i = data.v[,3]; D2i = data.v[,4]; Zi = data.v[,-c(1:4)]
   index.sub = which(data.v[,2] > tau & (data.v[,1] < log (tau)) & (data.v[,3] == 1)==TRUE)
   if(is.null(weight))	{W2i <- Wi.FUN.CONT(X2i,data = cbind	(X2i,D2i,Zi),t0=tau,tau=s)}
   else{W2i=weight}
-  loc.m = loc.fun.ex(t=X1i[index.sub], data=data.v, tau=tau, s=s, h=h)
+  loc.m = loc.fun.ex.OLD(t=t, data=data.v, tau=tau, s=s, h=h)
   size <- nrow(data.v)
   vmat.c = vmat - matrix(rep(1, 500*size), nrow = 500, ncol = size)
   diff = 1*(X2i > tau & X2i < tau+s & D2i == 1)[index.sub] - g.logit(apply(loc.m$est.mat* cbind(rep(1,length(X1i[index.sub])), Zi[index.sub,]),1,sum))
@@ -181,19 +198,20 @@ test_that("GLM coefficients match between old and new approaches with short-term
   test_data <- generate_test_data(n = 200, p = 5)
   old_data <- test_data$old_format
   new_data <- test_data$new_format
-  landpred_obj <- test_data$new_format
+
+  old_data$X1i <- exp(old_data$X1i)
 
   old_coef = suppressWarnings({loc.fun.ex(
     t = t_s,
     data = old_data,
     tau = t0,
     s = tau,
-    h = bw
+    h = bw,
+    transform=log
   )$est.mat[1, ]})
 
   new_glm <- fit_short_glm(new_data, t0, tau, t_s, bw=bw, transform=log)
 
-  print(abs(coef(new_glm) - old_coef))
   expect_equal(as.vector(coef(new_glm)), old_coef, tolerance = 1e-6)
 })
 
@@ -230,7 +248,8 @@ test_that("Variance estimation matches", {
     data = old_data,
     tau = t0,
     s = tau,
-    h = bw
+    h = bw,
+    transform = log
   )})
 
   size = dim(old_data)[1]
@@ -271,13 +290,18 @@ test_that("Variance estimation using landpred object is relatively the same", {
   old_data <- test_data$old_format
   new_data <- test_data$new_format
 
+  old_data$X1i <- exp(old_data$X1i)
+
   fit = suppressWarnings({loc.fun.ex(
     t = t_s,
     data = old_data,
     tau = t0,
     s = tau,
-    h = bw
+    h = bw,
+    transform = log
   )})
+
+  old_data$X1i <- log(old_data$X1i)
 
   size = dim(old_data)[1]
   vmat = matrix(rexp(500 * size, 1), nrow = 500, ncol = size)
@@ -295,16 +319,20 @@ test_that("Variance estimation using landpred object is relatively the same", {
   old_se_slopes <- var_old$sl
   old_se <- c(old_se_intercept, old_se_slopes)
 
+  old_data$X1i <- exp(old_data$X1i)
+
   obj <-
     landpred(Surv(X2i, D2i) ~ Surv(X1i, D1i) + Z1 + Z2 + Z3 + Z4 + Z5 + Z6 + Z7 + Z8 + Z9, data = old_data)
 
-  model <- get_model(obj, t0, tau, bw, transform=identity)
-
+  model <- get_model(obj, t0, tau, bw, transform=log)
   new_se <- coefficient_se(model, t_s=t_s, samples=500)
 
-  # Check relative difference is within 5%%
+  print(old_se)
+  print(new_se)
+
   rel_diff <- abs(new_se - old_se) / pmax(abs(old_se), 1e-8)
-  expect_true(all(rel_diff <= 0.20),
+  print(rel_diff)
+  expect_true(all(rel_diff <= 0.15),
               info = paste0("Max relative diff: ", max(rel_diff)))
 
 })

@@ -474,11 +474,11 @@ summary(model)</code></pre>
 ## 
 ## Coefficients (No short covariate):</code></pre>
 <pre><code>##             Estimate Std. Error
-## (Intercept)  1.74842     0.3891
-## Z1          -0.86291     0.3037
-## Z2           0.75548     0.2693
+## (Intercept)  1.74493     0.3092
+## Z1          -0.86809     0.2463
+## Z2           0.67091     0.2423
 ## ---
-## Fit on n=154 observations.
+## Fit on n=151 observations.
 ## 
 ## t0: 1.000      tau: 1.500</code></pre>
 <pre class="r"><code># Summary with short covariate
@@ -488,11 +488,11 @@ summary(model, t_s=0.8)</code></pre>
 ## 
 ## Coefficients (t_s=0.800000):</code></pre>
 <pre><code>##             Estimate Std. Error
-## (Intercept)   2.3646     0.4531
-## Z1           -0.8221     0.3584
-## Z2            2.1259     0.2971
+## (Intercept) -0.48535     1.5867
+## Z1           1.89603     1.3232
+## Z2           0.97387     1.0521
 ## ---
-## Fit on n=103 observations.
+## Fit on n=85 observations.
 ## 
 ## t0: 1.000      tau: 1.500</code></pre>
 </div>
@@ -502,7 +502,7 @@ summary(model, t_s=0.8)</code></pre>
 probabilities for a given observation.</p>
 <pre class="r"><code>probs &lt;- predict(model, newdata=df[1:5, , drop=FALSE])
 probs</code></pre>
-<pre><code>## [1] 0.8807971 0.9428349 0.7427723 0.9606302 0.8807971</code></pre>
+<pre><code>## [1] 0.9186184 0.6610876 0.7080086 1.0000000 0.9965507</code></pre>
 </div>
 
 
