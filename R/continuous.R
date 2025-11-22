@@ -24,7 +24,7 @@ Wi.FUN.CONT <- function(tt, data, t0, tau, weight.given = NULL)	{
   wihat
 }
 
-loc.fun.ex <- function(t, data,tau, s, h, weight = NULL, transform=identity) {
+loc.fun.ex.CONT <- function(t, data,tau, s, h, weight = NULL, transform=identity) {
   X1i = data[,1]; X2i = data[,2]; D1i = data[,3]; D2i = data[,4]; Zi = data[,-c(1:4)]
   if (is.null(weight))	{
     W2i <- Wi.FUN.CONT(X2i,
@@ -40,7 +40,7 @@ loc.fun.ex <- function(t, data,tau, s, h, weight = NULL, transform=identity) {
   invinf.mat = matrix(nrow=length(t), ncol = (dim(as.matrix(Zi))[2] + 1)^2)
   tmpfm <- paste("1*(X2i< tau+s) ~ ", paste(names(Zi),collapse="+"))
   for(i in 1:length(t)) {
-    m = glm(as.formula(tmpfm), data=data[index.sub,],  family = "quasibinomial", weights = K[i,]*W2i[index.sub])
+    m = glm(as.formula(tmpfm), data=data[index.sub,],  family = "binomial", weights = K[i,]*W2i[index.sub])
     est.mat[i,] = m$coeff
     invinf.mat[i,] = as.vector(vcov(m))
   }
@@ -225,9 +225,9 @@ var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=i
     W2i <- weight
   }
 
-  # Local estimation
-  loc.m <- loc.fun.ex(
-    t   = t,
+  # Local estimation at data points for residuals
+  loc.m <- loc.fun.ex.CONT(
+    t   = transform(X1i[index.sub]),
     data = data.v,
     tau = tau,
     s   = s,
@@ -239,12 +239,10 @@ var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=i
   vmat.c <- vmat - 1
 
   # Difference term
-  diff <- 1 * (X2i > tau & X2i < tau + s & D2i == 1)[index.sub] -
-    g.logit(apply(
-      loc.m$est.mat * cbind(1, Zi[index.sub, , drop = FALSE]),
-      1,
-      sum
-    ))
+  # Calculate linear predictor row-wise
+  linear_pred <- rowSums(loc.m$est.mat * cbind(1, Zi[index.sub, , drop = FALSE]))
+  
+  diff <- 1 * (X2i > tau & X2i < tau + s & D2i == 1)[index.sub] - g.logit(linear_pred)
 
   # Remove NA entries
   valid_idx <- which(!is.na(diff))
@@ -356,7 +354,7 @@ coefficient_se <-
       df_formatted <-
         landpred_to_legacy_data(model$landpred_obj)
 
-      fit = loc.fun.ex(
+      fit = loc.fun.ex.CONT(
         t = t_s,
         data = df_formatted,
         tau = model$t0,

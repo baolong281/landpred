@@ -1,4 +1,3 @@
-library(MASS)
 library(splines)
 library(sm)
 library(quantreg)
@@ -14,7 +13,7 @@ set.seed(42)
 # ---------- Old functions to test ------------------
 loc.fun.ex.OLD <- function(t, data,tau, s, h, weight = NULL) {
   X1i = data[,1]; X2i = data[,2]; D1i = data[,3]; D2i = data[,4]; Zi = data[,-c(1:4)]
-  if(is.null(weight))	{W2i <- Wi.FUN(X2i,data = cbind(X2i,D2i,Zi),t0=tau,tau=s)}
+  if(is.null(weight))	{W2i <- Wi.FUN(data = cbind(X2i,D2i,Zi),t0=tau,tau=s)}
   else{W2i=weight}
   index.sub = data[,2] > tau & (data[,1] < log (tau)) & (data[,3] == 1)
   K = Kern.FUN(X1i[index.sub],t,h)
@@ -35,7 +34,7 @@ var.fun.ex9b <- function(t, data.v,tau, s, h, vmat, Ainv, weight=NULL) {
   index.sub = which(data.v[,2] > tau & (data.v[,1] < log (tau)) & (data.v[,3] == 1)==TRUE)
   if(is.null(weight))	{W2i <- Wi.FUN.CONT(X2i,data = cbind	(X2i,D2i,Zi),t0=tau,tau=s)}
   else{W2i=weight}
-  loc.m = loc.fun.ex.OLD(t=t, data=data.v, tau=tau, s=s, h=h)
+  loc.m = loc.fun.ex.OLD(t=X1i[index.sub], data=data.v, tau=tau, s=s, h=h)
   size <- nrow(data.v)
   vmat.c = vmat - matrix(rep(1, 500*size), nrow = 500, ncol = size)
   diff = 1*(X2i > tau & X2i < tau+s & D2i == 1)[index.sub] - g.logit(apply(loc.m$est.mat* cbind(rep(1,length(X1i[index.sub])), Zi[index.sub,]),1,sum))
@@ -199,15 +198,13 @@ test_that("GLM coefficients match between old and new approaches with short-term
   old_data <- test_data$old_format
   new_data <- test_data$new_format
 
-  old_data$X1i <- exp(old_data$X1i)
-
-  old_coef = suppressWarnings({loc.fun.ex(
+  old_coef = suppressWarnings({loc.fun.ex.OLD(
     t = t_s,
     data = old_data,
     tau = t0,
     s = tau,
     h = bw,
-    transform=log
+    # transform=log
   )$est.mat[1, ]})
 
   new_glm <- fit_short_glm(new_data, t0, tau, t_s, bw=bw, transform=log)
@@ -243,14 +240,18 @@ test_that("Variance estimation matches", {
   old_data <- test_data$old_format
   new_data <- test_data$new_format
 
-  fit = suppressWarnings({loc.fun.ex(
+  # old_data$X1i <- exp(old_data$X1i)
+
+  fit = suppressWarnings({loc.fun.ex.OLD(
     t = t_s,
     data = old_data,
     tau = t0,
     s = tau,
     h = bw,
-    transform = log
+    # transform = log
   )})
+
+  # old_data$X1i <- log(old_data$X1i)
 
   size = dim(old_data)[1]
   vmat = matrix(rexp(500 * size, 1), nrow = 500, ncol = size)
@@ -268,6 +269,7 @@ test_that("Variance estimation matches", {
   old_se_slopes <- var_old$sl
   old_se <- c(old_se_intercept, old_se_slopes)
 
+  old_data$X1i <- exp(old_data$X1i)
   var_new <- suppressWarnings({var.fun(
     t = t_s,
     data.v = old_data,
@@ -276,7 +278,9 @@ test_that("Variance estimation matches", {
     h = bw,
     vmat = vmat,
     Ainv = fit$invinf,
+    transform = log
   )})
+  old_data$X1i <- log(old_data$X1i)
 
   new_se_intercept <- var_new$int
   new_se_slopes <- var_new$sl
@@ -292,7 +296,7 @@ test_that("Variance estimation using landpred object is relatively the same", {
 
   old_data$X1i <- exp(old_data$X1i)
 
-  fit = suppressWarnings({loc.fun.ex(
+  fit = suppressWarnings({loc.fun.ex.CONT(
     t = t_s,
     data = old_data,
     tau = t0,
@@ -326,14 +330,9 @@ test_that("Variance estimation using landpred object is relatively the same", {
 
   model <- get_model(obj, t0, tau, bw, transform=log)
   new_se <- coefficient_se(model, t_s=t_s, samples=500)
-
-  print(old_se)
-  print(new_se)
-
   rel_diff <- abs(new_se - old_se) / pmax(abs(old_se), 1e-8)
-  print(rel_diff)
+
   expect_true(all(rel_diff <= 0.15),
               info = paste0("Max relative diff: ", max(rel_diff)))
-
 })
 
