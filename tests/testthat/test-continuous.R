@@ -19,7 +19,7 @@ test_that("Getting continuous predictions works correctly with short covariate",
 test_that("Getting standard errors of coefficients works", {
   landpred_obj <- landpred(Surv(a, a_d) ~ Surv(b, b_d) + c + e, data=data)
   model <- get_model(landpred_obj, 0.5, 0.2, bw=0.3)
-  expect_false(any(is.na(coefficient_se(model))))
+  expect_false(any(is.na(landpred:::coefficient_se(model))))
 })
 
 test_that("Model printing out works", {

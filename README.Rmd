@@ -1,19 +1,32 @@
 ---
-title: "Tutorial for main functions in landpred package"
-author: "Your Name"
-date: "2025-01-03"
-output: html_document
+output: github_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
-options(repos = c(CRAN = "https://cloud.r-project.org"))
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
 ```
+
+# landpred
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/baolong281/landpred/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/baolong281/landpred/actions/workflows/R-CMD-check.yaml)
+[![Codecov test coverage](https://codecov.io/gh/baolong281/landpred/graph/badge.svg)](https://app.codecov.io/gh/baolong281/landpred)
+<!-- badges: end -->
+
 
 ## Introduction
 This landpred package provides nonparametric models for landmark prediction of long-term survival outcomes, incorporating covariate and short-term event information. The package supports the construction of flexible varying-coefficient models that use discrete covariates, as well as multiple continuous covariates. The goal is to improve prediction accuracy when censored short-term events are available as predictors, using robust nonparametric procedures that don't require correct model specification and avoid restrictive parametric assumptions found in existing multistate survival methods. More information
 on these models can be found in Parast et al. (2012, Journal of the American Statistical Association, doi:10.1080/01621459.2012.721281), and 
 Parast et al. (2011, Biometrical Journal, https://doi.org/10.1002/bimj.201000150).
+
+# Tutorial
 
 ## Generating Data
 
@@ -128,7 +141,6 @@ probs
 
 
  
-
 
 
 

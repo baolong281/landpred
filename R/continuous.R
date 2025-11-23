@@ -40,9 +40,22 @@ loc.fun.ex.CONT <- function(t, data,tau, s, h, weight = NULL, transform=identity
   invinf.mat = matrix(nrow=length(t), ncol = (dim(as.matrix(Zi))[2] + 1)^2)
   tmpfm <- paste("1*(X2i< tau+s) ~ ", paste(names(Zi),collapse="+"))
   for(i in 1:length(t)) {
-    m = glm(as.formula(tmpfm), data=data[index.sub,],  family = "quasibinomial", weights = K[i,]*W2i[index.sub])
-    est.mat[i,] = m$coeff
-    invinf.mat[i,] = as.vector(vcov(m))
+    w_final <- K[i,] * W2i[index.sub]
+    
+    # filter valid weights to avoid warnings
+    valid_weights <- w_final > 0
+    
+    if(sum(valid_weights) > 0) {
+      m = glm(as.formula(tmpfm), 
+              data=data[index.sub, , drop=FALSE][valid_weights, , drop=FALSE],  
+              family = "quasibinomial", 
+              weights = w_final[valid_weights])
+      est.mat[i,] = m$coeff
+      invinf.mat[i,] = as.vector(vcov(m))
+    } else {
+      est.mat[i,] = NA
+      invinf.mat[i,] = NA
+    }
   }
   return(list("est.mat" = est.mat, "invinf.mat" = invinf.mat))
 }
@@ -100,7 +113,8 @@ get_subset_indexes_short <- function(landpred_obj, t0, indices=NULL, transform=i
 #' @param tau The prediction window.
 #'
 #' @return A fitted glm object.
-#' @export
+#' @return A fitted glm object.
+#' @keywords internal
 fit_glm_normal <-
   function(landpred_obj, t0, tau) {
     ts_formula <-
@@ -146,7 +160,8 @@ fit_glm_normal <-
 #' @param indices Optional indices to subset the data.
 #'
 #' @return A fitted glm object.
-#' @export
+#' @return A fitted glm object.
+#' @keywords internal
 fit_short_glm <-
   function(landpred_obj, t0, tau, t_s, bw, transform, indices=NULL) {
     ts_formula <-
@@ -172,12 +187,21 @@ fit_short_glm <-
     subset_lt_t0 <- subset_and_format_df(landpred_obj, ts_lt_subset, transform)
     K = Kern.FUN.CONT(subset_lt_t0$X_S, t_s, bw)[1, ]
 
-    model <- glm(
-      as.formula(ts_formula),
-      data = subset_lt_t0,
-      family = "quasibinomial",
-      weights = weights[ts_lt_subset] * K
-    )
+    w_final <- weights[ts_lt_subset] * K
+    valid_weights <- w_final > 0
+    
+    if(sum(valid_weights) > 0) {
+      model <- glm(
+        as.formula(ts_formula),
+        data = subset_lt_t0[valid_weights, , drop=FALSE],
+        family = "quasibinomial",
+        weights = w_final[valid_weights]
+      )
+    } else {
+      # when all weights are zero none of the observations will be used
+      warning("All weights are zero in fit_short_glm. Returning NULL model.")
+      return(NULL)
+    }
     model
   }
 
@@ -240,7 +264,8 @@ handle_continuous_pred <- function(model, newdata) {
 #' @param transform Transformation function.
 #'
 #' @return A list containing the estimated standard errors for the intercept and slopes.
-#' @export
+#' @return A list containing the estimated standard errors for the intercept and slopes.
+#' @keywords internal
 var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=identity) {
   length.t <- length(t)
   size <- nrow(data.v)
@@ -392,7 +417,8 @@ var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=i
 #' @param samples The number of resampling iterations.
 #'
 #' @return A named vector of standard errors.
-#' @export
+#' @return A named vector of standard errors.
+#' @keywords internal
 coefficient_se <-
   function(model,
            t_s=NULL,
@@ -438,25 +464,7 @@ coefficient_se <-
     setNames(std_errors, names(coef(model$glm_noinfo)))
 }
 
-#' Get Landpred Model
-#'
-#' Fits the base GLM (no short covariate info) and creates a landpred model object.
-#'
-#' @param landpred_obj A landpred object.
-#' @param t0 The landmark time.
-#' @param tau The prediction window.
-#' @param bw The bandwidth.
-#' @param transform Transformation function.
-#'
-#' @return A landpred_model_continuous object.
-#' @export
-get_model <- function(landpred_obj, t0, tau, bw, transform=identity) {
-  glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
-  new_landpred_model_continuous(
-    landpred_obj, glm_noinfo, t0, tau, bw,
-    transform
-  )
-}
+
 
 new_landpred_model_continuous <- function(landpred_obj, glm_noinfo, t0, tau, bw, transform) {
   structure(
@@ -508,6 +516,14 @@ coef.landpred_model_continuous <- function(object, t_s=NULL, ...) {
   }
 }
 
+#' Print Method for Landpred Continuous Model
+#'
+#' Prints the continuous landpred model results.
+#'
+#' @param x A landpred_model_continuous object.
+#' @param ... Additional arguments.
+#'
+#' @export
 print.landpred_model_continuous <- function(x, ...) {
   cat("\nContinuous Landpred Model:\n")
   cat("Call coef() or summary() with t_s to see coefficients.\n")

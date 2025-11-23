@@ -8,6 +8,9 @@
 #' @param data The data frame.
 #' @param discrete Logical, whether to use the discrete method (legacy).
 #'
+#' @importFrom survival survfit Surv coxph
+#' @importFrom stats bw.nrd dnorm optimize glm glm.fit
+#'
 #' @return A landpred_object.
 #' @export
 landpred <- function(formula, data, discrete=FALSE) {

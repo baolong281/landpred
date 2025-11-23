@@ -13,6 +13,8 @@
 #' @param data The data frame.
 #' @param weight Optional weights.
 #' @param newdata Optional new data for prediction.
+#' @return A landpred_result object.
+#' @keywords internal
 Prob.Null <- function(t0, tau, data, weight=NULL, newdata = NULL) {
 	Xi.long = data[,1]; Di.long = data[,2];
 	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
@@ -83,6 +85,8 @@ Ghat.FUN <- function(tt, data,type='fl', weight.given)	{
 #' @param weight Optional weights.
 #' @param short Logical, whether the covariate is short-term.
 #' @param newdata Optional new data for prediction.
+#' @return A landpred_result object.
+#' @keywords internal
 Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NULL) {
  	Xi.long = data[,1]
  	Di.long = data[,2]
@@ -167,6 +171,8 @@ Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NUL
 #' @param weight Optional weights.
 #' @param bandwidth Bandwidth for kernel smoothing.
 #' @param newdata Optional new data for prediction.
+#' @return A landpred_result object.
+#' @keywords internal
 Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NULL, newdata=NULL) {
 	data[,3] = log(data[,3])
 	Xi.long = data[,1]
@@ -277,7 +283,8 @@ VTM<-function(vc, dm){
 #' @param reps Number of repetitions.
 #'
 #' @return The MSE.
-#' @export
+#' @return The MSE.
+#' @keywords internal
 mse.BW <- function(data, t0,tau,h, folds = 3,reps=2)
 {	BW.vec = vector(length=folds)
 	Xi.long = data[,1]
@@ -322,7 +329,8 @@ optimize.mse.BW = function(data, t0,tau,h.grid=seq(.01,2,length=50), folds=3, re
 #' @param weight Optional weights.
 #'
 #' @return A list containing the estimated Brier Score (AUC.est - note: function name says BS but return says AUC.est, likely BS).
-#' @export
+#' @return A list containing the estimated Brier Score (AUC.est - note: function name says BS but return says AUC.est, likely BS).
+#' @keywords internal
 BS.landmark <- function(t0, tau, data, short = TRUE, weight=NULL) {
 	Xi.long = data[,1]
 	Di.long = data[,2]
