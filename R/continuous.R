@@ -40,7 +40,7 @@ loc.fun.ex.CONT <- function(t, data,tau, s, h, weight = NULL, transform=identity
   invinf.mat = matrix(nrow=length(t), ncol = (dim(as.matrix(Zi))[2] + 1)^2)
   tmpfm <- paste("1*(X2i< tau+s) ~ ", paste(names(Zi),collapse="+"))
   for(i in 1:length(t)) {
-    m = glm(as.formula(tmpfm), data=data[index.sub,],  family = "binomial", weights = K[i,]*W2i[index.sub])
+    m = glm(as.formula(tmpfm), data=data[index.sub,],  family = "quasibinomial", weights = K[i,]*W2i[index.sub])
     est.mat[i,] = m$coeff
     invinf.mat[i,] = as.vector(vcov(m))
   }
@@ -90,6 +90,17 @@ get_subset_indexes_short <- function(landpred_obj, t0, indices=NULL, transform=i
 
 # Linear model for t0 + tau where our given t_s < t0
 # no information on short covariate
+#' Fit GLM with Normal Weights (No Short Covariate Info)
+#'
+#' Fits a GLM for the probability of the event occurring before \code{t0 + tau},
+#' given survival up to \code{t0}, using only baseline covariates.
+#'
+#' @param landpred_obj A landpred object containing the data.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#'
+#' @return A fitted glm object.
+#' @export
 fit_glm_normal <-
   function(landpred_obj, t0, tau) {
     ts_formula <-
@@ -120,6 +131,22 @@ fit_glm_normal <-
   }
 
 # fit glm with kernel weights and information on short covariate
+#' Fit GLM with Kernel Weights (Short Covariate Info)
+#'
+#' Fits a GLM for the probability of the event occurring before \code{t0 + tau},
+#' given survival up to \code{t0} and information on a short-term covariate.
+#' Uses kernel weighting based on the short-term covariate value.
+#'
+#' @param landpred_obj A landpred object containing the data.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param t_s The time of the short-term covariate measurement.
+#' @param bw The bandwidth for kernel weighting.
+#' @param transform A transformation function for the time variable (e.g., log).
+#' @param indices Optional indices to subset the data.
+#'
+#' @return A fitted glm object.
+#' @export
 fit_short_glm <-
   function(landpred_obj, t0, tau, t_s, bw, transform, indices=NULL) {
     ts_formula <-
@@ -197,6 +224,23 @@ handle_continuous_pred <- function(model, newdata) {
 
 # confidence interval for short info model
 # copied from legacy version but with support for any number of covariates
+#' Estimate Variance of Coefficients
+#'
+#' Estimates the variance of the coefficients for the short-term GLM using
+#' a perturbation resampling method.
+#'
+#' @param t The target time for the short-term covariate (usually t_s).
+#' @param data.v The data frame used for estimation.
+#' @param tau The landmark time.
+#' @param s The prediction window.
+#' @param h The bandwidth.
+#' @param vmat A matrix of perturbation weights.
+#' @param Ainv The inverse information matrix from the model fit.
+#' @param weight Optional weights.
+#' @param transform Transformation function.
+#'
+#' @return A list containing the estimated standard errors for the intercept and slopes.
+#' @export
 var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=identity) {
   length.t <- length(t)
   size <- nrow(data.v)
@@ -337,6 +381,18 @@ var.fun <- function(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform=i
   return(out)
 }
 
+#' Calculate Standard Errors for Coefficients
+#'
+#' Calculates standard errors for the coefficients of the landpred model.
+#' If \code{t_s} is provided, it uses the perturbation resampling method.
+#' Otherwise, it returns the standard errors from the GLM.
+#'
+#' @param model A landpred_model_continuous object.
+#' @param t_s The time of the short-term covariate measurement.
+#' @param samples The number of resampling iterations.
+#'
+#' @return A named vector of standard errors.
+#' @export
 coefficient_se <-
   function(model,
            t_s=NULL,
@@ -382,6 +438,18 @@ coefficient_se <-
     setNames(std_errors, names(coef(model$glm_noinfo)))
 }
 
+#' Get Landpred Model
+#'
+#' Fits the base GLM (no short covariate info) and creates a landpred model object.
+#'
+#' @param landpred_obj A landpred object.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param bw The bandwidth.
+#' @param transform Transformation function.
+#'
+#' @return A landpred_model_continuous object.
+#' @export
 get_model <- function(landpred_obj, t0, tau, bw, transform=identity) {
   glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
   new_landpred_model_continuous(
@@ -404,10 +472,31 @@ new_landpred_model_continuous <- function(landpred_obj, glm_noinfo, t0, tau, bw,
   )
 }
 
+#' Predict Method for Landpred Continuous Model
+#'
+#' Predicts the probability of the event occurring given new data.
+#'
+#' @param object A landpred_model_continuous object.
+#' @param newdata New data frame containing covariates and short-term event info.
+#' @param type Type of prediction (default "response").
+#'
+#' @return A vector of predicted probabilities.
+#' @export
 predict.landpred_model_continuous <- function(object, newdata=NULL, type="response") {
   handle_continuous_pred(object, newdata)
 }
 
+#' Extract Coefficients from Landpred Continuous Model
+#'
+#' Extracts coefficients. If \code{t_s} is provided, it fits the short-term GLM
+#' and returns its coefficients.
+#'
+#' @param object A landpred_model_continuous object.
+#' @param t_s Optional short-term covariate time.
+#' @param ... Additional arguments.
+#'
+#' @return A named vector of coefficients.
+#' @export
 coef.landpred_model_continuous <- function(object, t_s=NULL, ...) {
   if(is.null(t_s) || t_s > model$t0) {
     return(coef(object$glm_noinfo))
@@ -427,6 +516,15 @@ print.landpred_model_continuous <- function(x, ...) {
   cat(sprintf("t0: %-10.3f tau: %-10.3f", x$t0, x$tau))
 }
 
+#' Summary Method for Landpred Continuous Model
+#'
+#' Prints a summary of the model, including coefficients and standard errors.
+#'
+#' @param object A landpred_model_continuous object.
+#' @param t_s Optional short-term covariate time.
+#' @param ... Additional arguments.
+#'
+#' @export
 summary.landpred_model_continuous <- function(object, t_s = NULL, ...) {
   cat("\nContinuous Landpred Model:\n\n")
 

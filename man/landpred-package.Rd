@@ -49,9 +49,9 @@ out$newdata
 #out = Prob.Covariate.ShortEvent(t0=t0,tau=tau,data=data_example_landpred)
 #out$data
 #data.plot = out$data
-#plot(data.plot$XS[data.plot$Z ==1], data.plot$Probability[data.plot$Z ==1], 
+#plot(data.plot$XS[data.plot$Z ==1], data.plot$Probability[data.plot$Z ==1],
 #pch = 20, xlim = c(0,t0))
-#points(data.plot$XS[data.plot$Z ==0], data.plot$Probability[data.plot$Z ==0], 
+#points(data.plot$XS[data.plot$Z ==0], data.plot$Probability[data.plot$Z ==0],
 #pch = 20, col = 2)
 
 newdata = matrix(c(1,1,0.5,1,0,

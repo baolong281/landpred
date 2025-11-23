@@ -1,5 +1,15 @@
 # Main landpred function
 # Take a formula parse then return landpred model object we can call predict, etc... on
+#' Create a Landpred Object
+#'
+#' Parses the formula and data to create a landpred object used for landmark prediction.
+#'
+#' @param formula A formula object with a Surv object on the LHS and covariates on the RHS.
+#' @param data The data frame.
+#' @param discrete Logical, whether to use the discrete method (legacy).
+#'
+#' @return A landpred_object.
+#' @export
 landpred <- function(formula, data, discrete=FALSE) {
 
   tf <- terms(formula, specials=c("Surv"))
@@ -88,11 +98,27 @@ new_landpred_object <- function(x_l, x_s, Z, formula, names, discrete) {
   )
 }
 
+#' Print Method for Landpred Object
+#'
+#' Prints a summary of the landpred object.
+#'
+#' @param x A landpred_object.
+#' @param ... Additional arguments.
+#'
+#' @export
 print.landpred_object <- function(x, ...) {
   cat("\nCall:\n")
   cat("landpred(formula = ", deparse(x$formula), ")\n", sep="")
 }
 
+#' Summary Method for Landpred Object
+#'
+#' Prints a detailed summary of the landpred object.
+#'
+#' @param object A landpred_object.
+#' @param ... Additional arguments.
+#'
+#' @export
 summary.landpred_object <- function(object, ...) {
   cat("\nLandpred Object Summary\n")
   cat("Call get_model() to get time-specific model for t0 + tau\n\n")
@@ -101,6 +127,19 @@ summary.landpred_object <- function(object, ...) {
   cat(sprintf("Discrete: %-8s Short Covariate: %-8s N: %s\n", object$discrete, !is.null(object$X_S), length(object$X_L)))
 }
 
+#' Get Landpred Model (General)
+#'
+#' Creates a landpred model object for a specific landmark time and prediction window.
+#' Dispatches to continuous or discrete model creation based on the landpred object type.
+#'
+#' @param landpred_obj A landpred object.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param bw The bandwidth (for continuous models).
+#' @param transform Transformation function (for continuous models).
+#'
+#' @return A landpred_model object (continuous or discrete).
+#' @export
 get_model <- function(landpred_obj, t0, tau, bw=NULL, transform=identity) {
   if(landpred_obj$discrete == FALSE) {
     glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
@@ -125,10 +164,28 @@ new_landpred_model_discrete <- function(landpred_obj, t0, tau) {
   )
 }
 
+#' Predict Method for Discrete Landpred Model
+#'
+#' Predicts probabilities using the discrete landpred model.
+#'
+#' @param object A landpred_model_discrete object.
+#' @param newdata Optional new data.
+#' @param ... Additional arguments.
+#'
+#' @return Predicted probabilities.
+#' @export
 predict.landpred_model_discrete <- function(object, newdata = NULL, ...) {
   handle_discrete_pred(object$landpred_obj, object$t0, object$tau, newdata)
 }
 
+#' Print Method for Discrete Landpred Model
+#'
+#' Prints the discrete landpred model results.
+#'
+#' @param x A landpred_model_discrete object.
+#' @param ... Additional arguments.
+#'
+#' @export
 print.landpred_model_discrete <- function(x, ...) {
   old_landpred_result <- get_old_landpred_results_discrete(x$landpred_obj, x$t0, x$tau)
 

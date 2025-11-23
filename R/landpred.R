@@ -3,6 +3,16 @@
 ##calculate probability given no info ###########
 ###################################################
 
+#' Calculate Probability with No Information
+#'
+#' Calculates the probability of the event occurring before \code{t0 + tau},
+#' given survival up to \code{t0}, without using any covariate information.
+#'
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param data The data frame.
+#' @param weight Optional weights.
+#' @param newdata Optional new data for prediction.
 Prob.Null <- function(t0, tau, data, weight=NULL, newdata = NULL) {
 	Xi.long = data[,1]; Di.long = data[,2];
 	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
@@ -62,6 +72,17 @@ Ghat.FUN <- function(tt, data,type='fl', weight.given)	{
 ##calculate probability given covariate ###########
 ###################################################
 
+#' Calculate Probability with Covariate Information
+#'
+#' Calculates the probability of the event occurring before \code{t0 + tau},
+#' given survival up to \code{t0}, using a single covariate.
+#'
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param data The data frame.
+#' @param weight Optional weights.
+#' @param short Logical, whether the covariate is short-term.
+#' @param newdata Optional new data for prediction.
 Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NULL) {
  	Xi.long = data[,1]
  	Di.long = data[,2]
@@ -135,6 +156,17 @@ Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NUL
 ##calculate probability given covariate and TS ####
 ###################################################
 
+#' Calculate Probability with Short Event Information
+#'
+#' Calculates the probability of the event occurring before \code{t0 + tau},
+#' given survival up to \code{t0}, using information on a short-term event.
+#'
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param data The data frame.
+#' @param weight Optional weights.
+#' @param bandwidth Bandwidth for kernel smoothing.
+#' @param newdata Optional new data for prediction.
 Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NULL, newdata=NULL) {
 	data[,3] = log(data[,3])
 	Xi.long = data[,1]
@@ -233,6 +265,19 @@ VTM<-function(vc, dm){
      matrix(vc, ncol=length(vc), nrow=dm, byrow=T)
     }
 
+#' Optimize Bandwidth for Kernel Smoothing
+#'
+#' Calculates the Mean Squared Error (MSE) for a given bandwidth to help select the optimal bandwidth.
+#'
+#' @param data The data frame.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param h The bandwidth to test.
+#' @param folds Number of cross-validation folds.
+#' @param reps Number of repetitions.
+#'
+#' @return The MSE.
+#' @export
 mse.BW <- function(data, t0,tau,h, folds = 3,reps=2)
 {	BW.vec = vector(length=folds)
 	Xi.long = data[,1]
@@ -266,6 +311,18 @@ optimize.mse.BW = function(data, t0,tau,h.grid=seq(.01,2,length=50), folds=3, re
 }
 
 
+#' Calculate Brier Score for Landmark Prediction
+#'
+#' Calculates the Brier Score to evaluate the performance of the landmark prediction model.
+#'
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param data The data frame containing predictions.
+#' @param short Logical, whether short-term covariate info was used.
+#' @param weight Optional weights.
+#'
+#' @return A list containing the estimated Brier Score (AUC.est - note: function name says BS but return says AUC.est, likely BS).
+#' @export
 BS.landmark <- function(t0, tau, data, short = TRUE, weight=NULL) {
 	Xi.long = data[,1]
 	Di.long = data[,2]

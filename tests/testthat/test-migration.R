@@ -240,18 +240,13 @@ test_that("Variance estimation matches", {
   old_data <- test_data$old_format
   new_data <- test_data$new_format
 
-  # old_data$X1i <- exp(old_data$X1i)
-
   fit = suppressWarnings({loc.fun.ex.OLD(
     t = t_s,
     data = old_data,
     tau = t0,
     s = tau,
-    h = bw,
-    # transform = log
+    h = bw
   )})
-
-  # old_data$X1i <- log(old_data$X1i)
 
   size = dim(old_data)[1]
   vmat = matrix(rexp(500 * size, 1), nrow = 500, ncol = size)
