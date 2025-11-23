@@ -71,5 +71,5 @@ out$data
 #> Error: object 'out' not found
 
 BS.landmark(t0=t0,tau=tau, data = out$data)
-#> Error: object 'out' not found
+#> Error in BS.landmark(t0 = t0, tau = tau, data = out$data): could not find function "BS.landmark"
 ```
