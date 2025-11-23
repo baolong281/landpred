@@ -1,8 +1,3 @@
-library(splines)
-library(sm)
-library(quantreg)
-library(survival)
-
 # Global test values
 t0 <- 1.0
 tau <- 1.5

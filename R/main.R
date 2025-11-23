@@ -10,6 +10,9 @@
 #'
 #' @importFrom survival survfit Surv coxph
 #' @importFrom stats bw.nrd dnorm optimize glm glm.fit
+#' @import splines
+#' @import sm
+#' @import quantreg
 #'
 #' @return A landpred_object.
 #' @export
