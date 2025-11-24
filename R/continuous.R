@@ -505,10 +505,11 @@ new_landpred_model_continuous <- function(landpred_obj, glm_noinfo, t0, tau, bw,
 #' @param object A landpred_model_continuous object.
 #' @param newdata New data frame containing covariates and short-term event info.
 #' @param type Type of prediction (default "response").
+#' @param ... Additional arguments 
 #'
 #' @return A vector of predicted probabilities.
 #' @export
-predict.landpred_model_continuous <- function(object, newdata=NULL, type="response") {
+predict.landpred_model_continuous <- function(object, newdata=NULL, type="response", ...) {
   handle_continuous_pred(object, newdata)
 }
 
@@ -524,7 +525,7 @@ predict.landpred_model_continuous <- function(object, newdata=NULL, type="respon
 #' @return A named vector of coefficients.
 #' @export
 coef.landpred_model_continuous <- function(object, t_s=NULL, ...) {
-  if(is.null(t_s) || t_s > model$t0) {
+  if(is.null(t_s) || t_s > object$t0) {
     return(coef(object$glm_noinfo))
   } else {
     glm_shortinfo <- fit_short_glm(
@@ -729,12 +730,6 @@ mse_cv <- function(bw, landpred_obj, t0, tau, transform = identity, reps = 50, t
   mse_sum <- 0
   valid_reps <- 0
   
-  # Calculate weights for the whole dataset once
-  # We need censoring weights for the condition T_L > t0
-  # Wi.FUN calculates P(C > t0 + tau | C > t0) etc?
-  # Actually Wi.FUN returns weights for each individual.
-  # We should use the internal Wi.FUN logic.
-  
   W_all <- Wi.FUN(
     data = cbind(X_L_time, X_L_status),
     t0 = t0,
@@ -742,12 +737,8 @@ mse_cv <- function(bw, landpred_obj, t0, tau, transform = identity, reps = 50, t
   )
   
   for (i in 1:reps) {
-    # Random split
     ind_train <- sample(1:n, n_train)
     ind_val <- setdiff(1:n, ind_train)
-    
-    # Define subsets based on condition: Short event happened before t0, Long event after t0
-    # We use raw time for this check as t0 is raw time.
     
     subset_train <- ind_train[X_S_status[ind_train] == 1 & 
                               X_S_time[ind_train] < t0 & 
@@ -759,7 +750,6 @@ mse_cv <- function(bw, landpred_obj, t0, tau, transform = identity, reps = 50, t
     
     if (length(subset_train) < 10 || length(subset_val) < 10) next
     
-    # Create training object
     train_obj <- list(
       X_L = landpred_obj$X_L[subset_train, , drop=FALSE],
       X_S = landpred_obj$X_S[subset_train, , drop=FALSE],
@@ -768,8 +758,6 @@ mse_cv <- function(bw, landpred_obj, t0, tau, transform = identity, reps = 50, t
     )
     class(train_obj) <- "landpred_object"
     
-    # Fit model on training set
-    # We estimate coefficients at the transformed short-term times of the validation set
     t_s_val <- transform(X_S_time[subset_val])
     
     tryCatch({
@@ -782,16 +770,9 @@ mse_cv <- function(bw, landpred_obj, t0, tau, transform = identity, reps = 50, t
         transform = transform
       )
       
-      # Predict on validation set
-      # We need to construct newdata for validation
       val_data <- subset_and_format_df(landpred_obj, subset_val)
       
       preds <- predict(model, newdata = val_data, type = "response")
-      
-      # Calculate Brier Score component
-      # (1(T_L <= t0 + tau) - pred)^2
-      # Only consider those who are observed (uncensored or censored after t0+tau)
-      # But we use IPCW weights W_all
       
       truth <- (X_L_time[subset_val] <= t0 + tau)
       weights <- W_all[subset_val]

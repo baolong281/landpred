@@ -103,45 +103,48 @@ Our `get_model` function accepts a landpred object as input, and three required 
 a landmark prediction model for that specific time and delta. For the coefficients and standard errors of the coefficeints, we call `summary`
 on the returned model to get coefficients when no information in the short covariate is provided (has not occured yet). We can also provide `t_s` to this call to get coefficients for if the short event has occured yet.
 
-We must first choose our bandwidth value. We provide a utility to select this optimal value using K-fold 
-cross validations
+We must first choose our bandwidth value. We provide a utility to select this optimal value using cross-validation:
 
 ```{r}
-# t0 <- 0.5
-# tau <- 1.5
-# t_s <- 1
-# bw <- optimize_bw(obj1, tau, t_s)
-# bw
+t0 <- 0.5
+tau <- 1.5
+bw <- optimize_bandwidth(obj1, t0=t0, tau=tau, lower=0.01, upper=1, transform=identity)
+bw
 ```
+
+The optimal bandwidth is `r round(bw, 3)`, which controls the smoothness of the local regression used to incorporate short-term event information. A smaller bandwidth gives more weight to nearby observations, while a larger bandwidth smooths over more data points.
 
  
 ```{r}
-# Get model
-model <- get_model(obj1, t0=1, tau=1.5, bw=0.05)
+# Get model using the optimized bandwidth
+model <- get_model(obj1, t0=t0, tau=tau, bw=bw, transform=identity)
 
-# Summary with no short covariate
+# Summary with no short covariate information
 summary(model)
 ```
 
+The model summary shows coefficients for predicting survival beyond time `t0 + tau`, given survival to the landmark time `t0 = 0.5`.
+Calling summary without `t_s` returns the coefficients for the model when no short event information is provided.
+
 ```{r}
-# Summary with short covariate
-summary(model, t_s=0.8)
+# Summary with short covariate information (if short event occurred at time 0.3)
+summary(model, t_s=0.3)
 ```
+
+When we condition on the short event occurring at a specific time (here 0.3), the model provides locally-weighted coefficients that incorporate this timing information for more accurate predictions.
 
 ## Prediction
 
-We can also do prediction wiih this model to get survival probabilities for a given observation.
+We can also do prediction with this model to get survival probabilities for a given observation:
 
 ```{r}
 probs <- predict(model, newdata=df[1:5, , drop=FALSE])
 probs
 ```
 
-
-
-
- 
-
-
-
-
+These probabilities represent the estimated risk of the long-term event occurring by time `t0 + tau`, conditional on surviving to the landmark time `t0`. Higher values indicate greater risk.
+Here, newdata is a dataframe also containing the short event information for each observation. If this short event time is less than
+the value of `t_0`, then the short event time is incorporated into the probability, giving 
+`P(X_L > t_0 + tau | X=x, X_s=t_s)`. If the short event time is greater than `t_0`, then the short event time is not incorporated into the probability, giving instead
+`P(X_L > t_0 + tau | X=x)`. 
+```

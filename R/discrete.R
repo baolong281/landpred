@@ -95,9 +95,10 @@ Ghat.FUN <- function(tt, data,type='fl', weight.given)	{
 #'
 #' @param t0 The landmark time.
 #' @param tau The prediction window.
-#' @param data The data frame.
+#' @param data The data frame for training.
 #' @param weight Optional weights.
 #' @param short Logical, whether the covariate is short-term.
+#' @param newdata Dataframe of new data for prediction.
 #' @return A landpred_result object.
 #' @export
 Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NULL) {

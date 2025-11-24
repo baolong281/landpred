@@ -11,11 +11,13 @@ Prob.Covariate(t0, tau, data, weight = NULL, short = TRUE, newdata = NULL)
 
 \item{tau}{The prediction window.}
 
-\item{data}{The data frame.}
+\item{data}{The data frame for training.}
 
 \item{weight}{Optional weights.}
 
 \item{short}{Logical, whether the covariate is short-term.}
+
+\item{newdata}{Dataframe of new data for prediction.}
 }
 \value{
 A landpred_result object.

@@ -10,7 +10,7 @@
 #' @param discrete Logical, whether to use the discrete method (legacy).
 #'
 #' @importFrom survival survfit Surv coxph
-#' @importFrom stats bw.nrd dnorm optimize glm glm.fit
+#' @importFrom stats bw.nrd dnorm optimize glm glm.fit as.formula coef model.frame model.response nobs predict printCoefmat rexp sd setNames terms vcov
 #' @import splines
 #' @import sm
 #' @import quantreg
@@ -182,7 +182,7 @@ optimize_bandwidth <- function(landpred_obj, t0, tau, lower = 0.05, upper = 5, t
   }
   
   opt <- optimize(
-    f = landpred:::mse_cv,
+    f = mse_cv,
     interval = c(lower, upper),
     landpred_obj = landpred_obj,
     t0 = t0,

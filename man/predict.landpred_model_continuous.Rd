@@ -4,7 +4,7 @@
 \alias{predict.landpred_model_continuous}
 \title{Predict Method for Landpred Continuous Model}
 \usage{
-\method{predict}{landpred_model_continuous}(object, newdata = NULL, type = "response")
+\method{predict}{landpred_model_continuous}(object, newdata = NULL, type = "response", ...)
 }
 \arguments{
 \item{object}{A landpred_model_continuous object.}
@@ -12,6 +12,8 @@
 \item{newdata}{New data frame containing covariates and short-term event info.}
 
 \item{type}{Type of prediction (default "response").}
+
+\item{...}{Additional arguments}
 }
 \value{
 A vector of predicted probabilities.

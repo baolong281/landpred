@@ -18,6 +18,7 @@ A landpred_object.
 }
 \description{
 Parses the formula and data to create a landpred object used for landmark prediction.
+Call `?landpred.pacakge` for more information on the legacy API.
 }
 \examples{
 library(landpred)
