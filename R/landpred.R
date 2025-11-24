@@ -1,400 +1,332 @@
-
-###################################################
-##calculate probability given no info ###########
-###################################################
-
-#' Calculate Probability with No Information
+# Main landpred function
+# Take a formula parse then return landpred model object we can call predict, etc... on
+#' Create a Landpred Object
 #'
-#' Calculates the probability of the event occurring before \code{t0 + tau},
-#' given survival up to \code{t0}, without using any covariate information.
+#' Parses the formula and data to create a landpred object used for landmark prediction.
+#' Call `?landpred.pacakge` for more information on the legacy API.
 #'
-#' @param t0 The landmark time.
-#' @param tau The prediction window.
+#' @param formula A formula object with a Surv object on the LHS and covariates on the RHS.
 #' @param data The data frame.
-#' @param weight Optional weights.
-#' @param newdata Optional new data for prediction.
-#' @return A landpred_result object.
-#' @keywords internal
-Prob.Null <- function(t0, tau, data, weight=NULL, newdata = NULL) {
-	Xi.long = data[,1]; Di.long = data[,2];
-	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
-
-	if (is.null(weight)) {
-	  W2i <- Wi.FUN(data = cbind	(Xi.long, Di.long),
-	                t0 = t0,
-	                tau = tau)
-	} else {
-	  W2i <- weight
-	}
-
-	Prob = sum(1 * W2i * (Xi.long <= t0 + tau) * (Xi.long > t0)) /
-	       sum(1 * W2i * (Xi.long > t0))
-
-	data.column = vector(length = dim(data)[1])
-	data.column[data[, 1] <= t0] = NA
-	data.column[data[, 1] > t0] = Prob
-	data = cbind(data, data.column)
-    if(!is.null(newdata)) {
-    	newdata.column = vector(length = dim(newdata)[1])
-	    newdata.column[newdata[, 1] <= t0] = NA
-	    newdata.column[newdata[, 1] > t0] = Prob
-		newdata = cbind(newdata, newdata.column)
-    }
-
-	  return(
-	    new_landpred_result_discrete(
-	      Prob=Prob,
-	      data=data,
-	      newdata=newdata,
-	      t0=t0,
-	      tau=tau,
-	      mode="no-covariate"
-	    )
-	  )
-}
-
-###################################################
-##calculate IPCW##################################
-###################################################
-Wi.FUN <- function(data, t0, tau, weight.given=NULL)	{
-    Xi <- data[,1]; Di <- data[,2]; wihat <- rep(0, length(Xi))
-    tmpind1 <- (Xi > t0)&(Xi <= (t0+tau)); tt0 <- c(Xi[tmpind1], t0 + tau); Ghat.tt0 <- Ghat.FUN(tt0,data, weight.given=weight.given)
-    wihat[Xi > (t0+tau)] <- 1/Ghat.tt0[length(tt0)]
-    wihat[tmpind1] <- Di[tmpind1]/Ghat.tt0[-length(tt0)]
-    wihat
-}
-
-
-Ghat.FUN <- function(tt, data,type='fl', weight.given)	{
-    tmpind <- rank(tt); Xi <- data[,1]; Di <- data[,2]
-    summary(survfit(Surv(Xi,1-Di)~1,se.fit=F,type=type, weights=weight.given),sort(tt))$surv[tmpind]
-}
-
-###################################################
-##calculate probability given covariate ###########
-###################################################
-
-#' Calculate Probability with Covariate Information
+#' @param discrete Logical, whether to use the discrete method (legacy).
 #'
-#' Calculates the probability of the event occurring before \code{t0 + tau},
-#' given survival up to \code{t0}, using a single covariate.
+#' @importFrom survival survfit Surv coxph
+#' @importFrom stats bw.nrd dnorm optimize glm glm.fit
+#' @import splines
+#' @import sm
+#' @import quantreg
+#' @example inst/examples/new_api_workflow.R
 #'
-#' @param t0 The landmark time.
-#' @param tau The prediction window.
-#' @param data The data frame.
-#' @param weight Optional weights.
-#' @param short Logical, whether the covariate is short-term.
-#' @param newdata Optional new data for prediction.
-#' @return A landpred_result object.
-#' @keywords internal
-Prob.Covariate <- function(t0, tau, data, weight=NULL, short=TRUE, newdata = NULL) {
- 	Xi.long = data[,1]
- 	Di.long = data[,2]
- 	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
+#' @return A landpred_object.
+#' @export
+landpred <- function(formula, data, discrete=FALSE) {
 
-	if(short) {
-	  Zi = data[,5]
-	} else {
-  	Zi = data[,3]
+  tf <- terms(formula, specials=c("Surv"))
+  surv_terms <- attr(tf, "specials")$Surv
+
+  # Get survival terms of right by not including the one for response
+  rhs_survival_terms <- surv_terms[surv_terms > attr(tf, "response")]
+
+  # Throw error if more than one short covariate, and get the column of it
+  short_cov <- NULL
+  if(length(rhs_survival_terms) > 1) {
+    stop("Only a singular short-term covariate can be included.")
+  } else if(length(rhs_survival_terms) == 1) {
+    short_cov = attr(tf, "variables")[[rhs_survival_terms[[1]] + 1]]
+    short_cov <- deparse(short_cov)
   }
 
-  if (is.null(weight)) {
-      W2i <- Wi.FUN(data = cbind(Xi.long, Di.long), t0 = t0, tau = tau)
+  mf <- model.frame(formula, data)
+
+  x_l <- model.response(mf)
+  response_expr <- attr(tf, "variables")[[attr(tf, "response") + 1]]
+  x_l_name <- deparse(response_expr[[2]])
+
+  # delta for long covariate
+  d_l_name <- deparse(response_expr[[3]])
+
+  x_s <- NULL
+  x_s_name <- NULL
+  d_s_name <- NULL
+  if(length(rhs_survival_terms) != 0) {
+    x_s <- if (!is.null(short_cov)) mf[[short_cov]] else NULL
+    short_expr <- attr(tf, "variables")[[rhs_survival_terms[[1]] + 1]]
+    x_s_name <- deparse(short_expr[[2]])
+    d_s_name <- deparse(short_expr[[3]])
+  }
+
+  if(!inherits(x_l, "Surv") || (!is.null(x_s) && !inherits(x_s, "Surv"))) {
+    stop("Response variable and short-term covariate must a survival object.")
+  }
+
+  covariates <- attr(tf, "term.labels")
+
+  if(length(covariates) == 1 && !is.null(x_s)) {
+    stop("Normal covariate must be provided with short term covariate")
+  }
+
+  if(!discrete && is.null(x_s)) {
+    stop("Short term covariate must be provded with multivariate continuous models")
+  }
+
+  covariates <- covariates[!(covariates %in% c(short_cov))]
+
+
+  Z <- mf[, covariates, drop=FALSE]
+
+  if(discrete == TRUE && ncol(Z) > 1) {
+    stop("Only a singular covariate is allowed if discrete=TRUE")
+  }
+
+  names <- list(
+    x_l_name = x_l_name,
+    d_l_name = d_l_name,
+    x_s_name = x_s_name,
+    d_s_name = d_s_name,
+    covariates=covariates
+  )
+
+  new_landpred_object(
+    x_l,
+    x_s,
+    Z,
+    names=names,
+    formula = formula,
+    discrete = discrete
+  )
+}
+
+# Create new landpred model
+new_landpred_object <- function(x_l, x_s, Z, formula, names, discrete) {
+  structure(
+    list(
+      X_L = x_l, X_S = x_s, Z = Z, formula = formula, discrete = discrete,
+      names=names
+    ),
+    class="landpred_object"
+  )
+}
+
+#' Print Method for Landpred Object
+#'
+#' Prints a summary of the landpred object.
+#'
+#' @param x A landpred_object.
+#' @param ... Additional arguments.
+#'
+#' @export
+print.landpred_object <- function(x, ...) {
+  cat("\nCall:\n")
+  cat("landpred(formula = ", deparse(x$formula), ")\n", sep="")
+}
+
+#' Summary Method for Landpred Object
+#'
+#' Prints a detailed summary of the landpred object.
+#'
+#' @param object A landpred_object.
+#' @param ... Additional arguments.
+#'
+#' @export
+summary.landpred_object <- function(object, ...) {
+  cat("\nLandpred Object Summary\n")
+  cat("Call get_model() to get time-specific model for t0 + tau\n\n")
+  cat("Call:\n")
+  cat("landpred(formula = ", deparse(object$formula), ")\n\n", sep="")
+  cat(sprintf("Discrete: %-8s Short Covariate: %-8s N: %s\n", object$discrete, !is.null(object$X_S), length(object$X_L)))
+}
+
+#' Get Landpred Model (General)
+#'
+#' Creates a landpred model object for a specific landmark time and prediction window.
+#' Dispatches to continuous or discrete model creation based on the landpred object type.
+#'
+#' @param landpred_obj A landpred object.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param bw The bandwidth (for continuous models).
+#' @param transform Transformation function (for continuous models).
+#'
+#' @return A landpred_model object (continuous or discrete).
+#' @export
+get_model <- function(landpred_obj, t0, tau, bw=NULL, transform=identity) {
+  if(landpred_obj$discrete == FALSE) {
+    glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
+    model <- new_landpred_model_continuous(
+      landpred_obj, glm_noinfo, t0, tau, bw,
+      transform
+    )
   } else {
-      W2i = weight
+    model <- new_landpred_model_discrete(landpred_obj, t0, tau)
   }
+  model
+}
 
-  zi.cat = unique(Zi)
-  covariate.results = matrix(nrow = length(zi.cat), ncol = 2)
-  data.column = vector(length = dim(data)[1])
-	data.column[data[, 1] <= t0] = NA
-	if (!is.null(newdata)) {
-	  newdata.column = vector(length = dim(newdata)[1])
-	  newdata.column[newdata[, 1] <= t0] = NA
-	  newdata.Zi.column = dim(newdata)[2]
-	}
-	for (j in 1:length(zi.cat)) {
-	  covariate.results[j, 1] = zi.cat[j]
-	  c = zi.cat[j]
-	  if (sum(Zi == c) < 10) {
-	    print(paste("Warning: Very few individuals with covariate value = ", c))
-	  }
-	  covariate.results[j, 2] = sum(1 * (Zi == c) * W2i * (Xi.long <= t0 + tau) * (Xi.long > t0)) /
-	                            sum(1 * (Zi == c) * W2i * (Xi.long > t0))
-	  data.column[data[, 1] > t0 &
-	                Zi == c] = covariate.results[j, 2]
-	  if (!is.null(newdata)) {
-	    newdata.column[newdata[, 1] > t0 &
-	                     newdata[, newdata.Zi.column] == c] = covariate.results[j, 2]
-	  }
-	}
-	data = cbind(data, data.column)
-	if (!is.null(newdata)) {
-	  newdata = cbind(newdata, newdata.column)
-	  newdata = as.data.frame(newdata)
-	  if (dim(newdata)[2] == 6) {
-	    names(newdata) = c("XL", "DL", "XS", "DS", "Z", "Probability")
-	  }
-	  if (dim(newdata)[2] == 4) {
-	    names(newdata) = c("XL", "DL", "Z", "Probability")
-	  }
-	}
-	data = as.data.frame(data)
-	if (short) {
-	  names(data) = c("XL", "DL", "XS", "DS", "Z", "Probability")
-	}
-	if (!short) {
-	  names(data) = c("XL", "DL", "Z", "Probability")
-	}
-	return(new_landpred_result_discrete(
-	  Prob = covariate.results,
-	  data = data,
-	  newdata = newdata,
-	  t0=t0,
-	  tau=tau,
-	  mode="single-covariate"
-	))
-  }
-
-###################################################
-##calculate probability given covariate and TS ####
-###################################################
-
-#' Calculate Probability with Short Event Information
+#' Optimize Bandwidth for Continuous Landpred Models
 #'
-#' Calculates the probability of the event occurring before \code{t0 + tau},
-#' given survival up to \code{t0}, using information on a short-term event.
+#' Selects the optimal bandwidth by minimizing the Mean Squared Error (MSE) using cross-validation.
 #'
+#' @param landpred_obj A landpred object.
 #' @param t0 The landmark time.
 #' @param tau The prediction window.
-#' @param data The data frame.
-#' @param weight Optional weights.
-#' @param bandwidth Bandwidth for kernel smoothing.
-#' @param newdata Optional new data for prediction.
-#' @return A landpred_result object.
-#' @keywords internal
-Prob.Covariate.ShortEvent <- function(t0, tau, data, weight=NULL, bandwidth = NULL, newdata=NULL) {
-	data[,3] = log(data[,3])
-	Xi.long = data[,1]
-	Di.long = data[,2]
-	Xi.short = data[,3]
-	Di.short = data[,4]
-	Zi = data[,5]
-	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
-	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind(Xi.long,Di.long),t0=t0,tau=tau)}
-	else{W2i=weight}
-	if(is.null(bandwidth)) {
-		h = bw.nrd(Xi.short[Xi.short<log(t0) & Xi.long > t0])
-		bandwidth = h*sum(Xi.short<log(t0) & Xi.long > t0)^(-.10)
-	}
-	zi.cat = unique(Zi)
-	data.column = vector(length = dim(data)[1])
-	data.column[data[,1] <= t0] = NA
-	for(j in 1:length(zi.cat)) {
-		c = zi.cat[j]
-		if(sum(Zi==c) < 10) {print(paste("Warning: Very few individuals with covariate value = ",c))}
-		if(sum(data[,1] > t0 & data[,3]<log(t0) & data[,5] == c) < 50) {print("Warning: Smoothing over very few short term events")}
-		if(sum(data[,1] > t0 & data[,3]>=log(t0) & data[,5] == c) < 10) {print(paste("Warning: Very few individuals with short term event past t0 and with covariate value = ",c))}
-		short.ind = (data[,1] > t0 & data[,3]<log(t0) & data[,5] == c)
-		Pr.2.t = Prob2.k.t(t=Xi.short[short.ind], t0=t0, tau=tau,data.use=data,bandwidth=bandwidth,covariate.value=c)
-		data.column[short.ind] = Pr.2.t
-		Pr.2 = Prob2(t0=t0, tau=tau,data=data,covariate.value = c)
-		data.column[data[,1] > t0 & data[,3] >= log(t0) & data[,5] == c] = Pr.2
-		}
-	if(!is.null(newdata)) {
-		if(is.null(names(newdata))) {
-			newdata = as.data.frame(newdata)
-		}
-		newdata.column = vector(length = dim(newdata)[1])
-		newdata.column[newdata[,1] <= t0] = NA
-		for(j in 1:length(zi.cat)) {
-			c = zi.cat[j]
-			short.ind = (newdata[,1] > t0 & newdata[,3]<t0 & newdata[,5] == c)
-			Pr.2.t = Prob2.k.t(log(newdata[short.ind,3]), t0=t0, tau=tau,data.use=data,bandwidth=bandwidth,covariate.value=c)
-			newdata.column[short.ind] = Pr.2.t
-			Pr.2 = Prob2(t0=t0, tau=tau,data=data,covariate.value = c)
-			newdata.column[newdata[,1] > t0 & newdata[,3] >= t0 & newdata[,5] == c] = Pr.2
-			}
-		newdata = cbind(newdata, newdata.column)
-		names(newdata) = c("XL", "DL", "XS", "DS", "Z", "Probability")
-	}
-	data = cbind(data[,c(1:2)], exp(data[,3]), data[,c(4:5)], data.column)
-	data=as.data.frame(data)
-	names(data) = c("XL", "DL", "XS", "DS", "Z", "Probability")
-	# return(list("data" = data, "newdata" = newdata))
-	return(new_landpred_result_discrete(
-	  Prob = NULL,
-	  data = data,
-	  newdata = newdata,
-	  t0=t0,
-	  tau=tau,
-	  mode="short-covariate"
-	))
-}
-
-prob2.single= function(K,W2i,Xi.long,tau,Di.short,Xi.short, Zi, t0,covariate.value) {
-	P.2 = (sum(1*(Zi==covariate.value)*W2i*(Xi.long <= t0 + tau)*(Xi.long > t0)*(Di.short == 1)*(Xi.short<log(t0))*(Xi.short<log(t0))*K))/(sum(1*(Zi==covariate.value)*W2i*(Xi.long > t0)*(Di.short == 1)*(Xi.short<log(t0))*(Xi.short<log(t0))*K))
- 		return(P.2)
- 		}
-
-Prob2.k.t <- function(t,t0, tau, data.use,bandwidth, covariate.value, weight=NULL) {
-	Xi.long = data.use[,1]
-	Di.long = data.use[,2]
-	Xi.short = data.use[,3]
-	Di.short = data.use[,4]
-	Zi = data.use[,5]
-	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
-	else{W2i=weight}
-	K = Kern.FUN(Xi.short,t,bandwidth)
-	P.2.return = apply(K, 1, prob2.single,W2i=W2i,Xi.long=Xi.long,tau=tau,Di.short =Di.short,Xi.short=Xi.short,Zi=Zi, t0=t0,covariate.value=covariate.value)
-	P.2.return[t>=log(t0)] = NA
-	return(P.2.return)
-}
-
-
-Prob2 <- function(t0, tau, data, covariate.value, weight=NULL) {
-	Xi.long = data[,1]; Di.long = data[,2]; Xi.short = data[,3];  Di.short = data[,4];  Zi = data[,5]
-	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
-	else{W2i=weight}
-	P.1 = (sum(1*(Zi==covariate.value)*W2i*(Xi.long <= t0 + tau)*(Xi.long > t0)*(Xi.short > log(t0))))/(sum	(1*(Zi==covariate.value)*W2i*(Xi.long > 	t0)*(Xi.short > log(t0))))
-	return(P.1)
-}
-
-Kern.FUN <- function(zz,zi,bw) ## returns an (n x nz) matrix
-{
-	out = (VTM(zz,length(zi))- zi)/bw
-   	norm.k = dnorm(out)/bw
-   	norm.k
-}
-
-VTM<-function(vc, dm){
-     matrix(vc, ncol=length(vc), nrow=dm, byrow=T)
-    }
-
-#' Optimize Bandwidth for Kernel Smoothing
+#' @param lower Lower bound for bandwidth search.
+#' @param upper Upper bound for bandwidth search.
+#' @param transform Transformation function for the short-term covariate (e.g., log). Default is identity.
+#' @param reps Number of cross-validation repetitions. Default is 50.
+#' @param train_prop Proportion of data used for training in each fold. Default is 0.66.
 #'
-#' Calculates the Mean Squared Error (MSE) for a given bandwidth to help select the optimal bandwidth.
-#'
-#' @param data The data frame.
-#' @param t0 The landmark time.
-#' @param tau The prediction window.
-#' @param h The bandwidth to test.
-#' @param folds Number of cross-validation folds.
-#' @param reps Number of repetitions.
-#'
-#' @return The MSE.
-#' @return The MSE.
-#' @keywords internal
-mse.BW <- function(data, t0,tau,h, folds = 3,reps=2)
-{	BW.vec = vector(length=folds)
-	Xi.long = data[,1]
-	Di.long = data[,2]
-	Xi.short = data[,3]
-	Di.short = data[,4]
-	Zi = data[,5]
-	W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)
-	num.observ = dim(data)[1]
-	nv = floor(num.observ/folds)
-	replic = matrix(nrow = reps, ncol =folds)
-	for(j in 1:reps) {
-	for(k in 1:folds) {
-		ind.val = sample(1:num.observ, nv)
-		ind.tra = setdiff(1:num.observ,ind.val)
-		d = Prob.Covariate.ShortEvent(t0, tau, data = data[ind.tra,], newdata = data[ind.val,], bandwidth = h, weight = W2i[ind.tra])
-		prob.val = d$newdata
-		BW = sum((((Xi.long[ind.val]<=t0+tau) - prob.val$Probability)^2)*(Xi.long[ind.val]>t0)*(Xi.short[ind.val]<t0)*(W2i[ind.val])*(Di.short[ind.val]==1),na.rm=T)
-		BW.vec[k] = BW
-	}
-	replic[j,] = BW.vec
-	}
-return(mean(replic))
+#' @return The optimal bandwidth.
+#' @export
+optimize_bandwidth <- function(landpred_obj, t0, tau, lower = 0.05, upper = 5, transform = identity, reps = 50, train_prop = 0.66) {
+  if (landpred_obj$discrete) {
+    stop("Bandwidth optimization is only for continuous models.")
+  }
+  
+  opt <- optimize(
+    f = landpred:::mse_cv,
+    interval = c(lower, upper),
+    landpred_obj = landpred_obj,
+    t0 = t0,
+    tau = tau,
+    transform = transform,
+    reps = reps,
+    train_prop = train_prop
+  )
+  
+  return(opt$minimum)
 }
 
-optimize.mse.BW = function(data, t0,tau,h.grid=seq(.01,2,length=50), folds=3, reps=2){
-	opt = optimize(f = mse.BW, data=data,t0=t0,tau=tau, lower =min(h.grid), upper = max(h.grid), folds=folds, reps=reps)
-	h=opt$minimum
-	print("Consider undersmoothing to obtain optimal order.")
- return(list("h" = h))
+new_landpred_model_discrete <- function(landpred_obj, t0, tau) {
+  structure(
+    list(
+      landpred_obj = landpred_obj,
+      t0 = t0,
+      tau = tau
+    ),
+    class = "landpred_model_discrete"
+  )
 }
 
-
-#' Calculate Brier Score for Landmark Prediction
+#' Predict Method for Discrete Landpred Model
 #'
-#' Calculates the Brier Score to evaluate the performance of the landmark prediction model.
+#' Predicts probabilities using the discrete landpred model.
 #'
-#' @param t0 The landmark time.
-#' @param tau The prediction window.
-#' @param data The data frame containing predictions.
-#' @param short Logical, whether short-term covariate info was used.
-#' @param weight Optional weights.
+#' @param object A landpred_model_discrete object.
+#' @param newdata Optional new data.
+#' @param ... Additional arguments.
 #'
-#' @return A list containing the estimated Brier Score (AUC.est - note: function name says BS but return says AUC.est, likely BS).
-#' @return A list containing the estimated Brier Score (AUC.est - note: function name says BS but return says AUC.est, likely BS).
-#' @keywords internal
-BS.landmark <- function(t0, tau, data, short = TRUE, weight=NULL) {
-	Xi.long = data[,1]
-	Di.long = data[,2]
-	if(short) {
-		Xi.short = data[,3]
-		Di.short = data[,4]
-		Zi = data[,5]
-		Prob.est = data[,6]
-		}
-	if(!short) {
-		Zi = data[,3]
-		Prob.est = data[,4]
-		}
-	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
-	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
-	else{W2i=weight}
-	brier.score= sum( (W2i[Xi.long>t0])*((1*(Xi.long[Xi.long>t0] <= t0+tau) - Prob.est[Xi.long>t0])^2)  )/sum((1*(Xi.long>t0))*(W2i))
-    return(list("Brier.score" = brier.score))
-
+#' @return Predicted probabilities.
+#' @export
+predict.landpred_model_discrete <- function(object, newdata = NULL, ...) {
+  handle_discrete_pred(object$landpred_obj, object$t0, object$tau, newdata)
 }
 
-AUC.landmark <- function(t0, tau, data, short = TRUE, weight=NULL) {
-	Xi.long = data[,1]
-	Di.long = data[,2]
-	if(short) {
-		Xi.short = data[,3]
-		Di.short = data[,4]
-		Zi = data[,5]
-		Prob.est = data[,6]
-		}
-	if(!short) {
-		Zi = data[,3]
-		Prob.est = data[,4]
-		}
-	if(sum(Xi.long > t0) == 0) {stop("No long term events past the landmark time.")}
-	if(is.null(weight))	{W2i <- Wi.FUN(data = cbind	(Xi.long,Di.long),t0=t0,tau=tau)}
-	else{W2i=weight}
-	Si <- Prob.est; ss <- unique(sort(Si))
-	AUC.est <- sum((helper.si(Si, "<=", Si, W2i*(Xi.long <= t0 + tau)*(Xi.long > t0))   + helper.si(Si, "<", Si, W2i*(Xi.long <= t0 + tau)*(Xi.long 	> t0)))*W2i*(Xi.long > t0 + tau)/2)/(sum(W2i*(Xi.long <= t0+tau)*(Xi.long > t0))*sum(W2i*(Xi.long > t0+tau)))
-    return(list("AUC.est" = AUC.est))
+#' Print Method for Discrete Landpred Model
+#'
+#' Prints the discrete landpred model results.
+#'
+#' @param x A landpred_model_discrete object.
+#' @param ... Additional arguments.
+#'
+#' @export
+print.landpred_model_discrete <- function(x, ...) {
+  old_landpred_result <- get_old_landpred_results_discrete(x$landpred_obj, x$t0, x$tau)
 
-}
+  model_name <- ""
+  model_prob_formula <- ""
 
-
-helper.si <- function(yy,FUN,Yi,Vi=NULL)
-  {
-    if(FUN=="<"|FUN=="<=") { yy <- -yy; Yi <- -Yi}
-    if(substring(FUN,2,2)=="=") yy <- yy + 1e-8 else yy <- yy - 1e-8
-    pos <- rank(c(yy,Yi))[1:length(yy)] - rank(yy)
-    if(is.null(Vi)){return(pos)}else{
-      Vi <- cumsum2(as.matrix(Vi)[order(Yi),,drop=F])
-      out <- matrix(0, nrow=length(yy), ncol=dim(as.matrix(Vi))[2])
-      out[pos!=0,] <- Vi[pos,]
-      if(is.null(dim(Vi))) out <- c(out)
-      return(out) ## n.y x p
-    }
+  if(old_landpred_result$mode == "no-covariate") {
+    model_name <- "No Discrete covariate + no short covariate"
+    model_prob_formula <- "P(TL < t0 + tau)"
+  } else if (old_landpred_result$mode == "single-covariate") {
+    model_name <- "Discrete covariate + no short covariate"
+    model_prob_formula <- "P(TL < t0 + tau|Z=z)"
+  } else {
+    model_name <- "Discrete covariate + short covariate"
+    model_prob_formula <- "P(TL < t0 + tau|Z=z,T_s=t_s)"
   }
 
-cumsum2 <- function(mydat)
-  {
-    if(is.null(dim(mydat))) return(cumsum(mydat))
-    else{
-      out <- matrix(cumsum(mydat), nrow=nrow(mydat))
-      out <- out - VTM(c(0, out[nrow(mydat), -ncol(mydat)]), nrow(mydat))
-      return(out)
-    }
+  cat(sprintf("\nDiscrete Landpred Model (%s):\n", model_name))
+  print(x$landpred_obj)
+  cat("\n")
+
+  Probs <- old_landpred_result$Prob
+  if(is.matrix(Probs)) {
+    cat("Probs:\n")
+    apply(Probs, 1, function(row) {
+      cat(sprintf("P(TL < t0+tau|Z=%d): %.3f\n", row[1], row[2]))
+    })
+    cat("\n")
+  } else if (!is.null(Probs)) {
+    cat("Probs:\n")
+    cat(sprintf("%s: %.3f", model_prob_formula, Probs))
+    cat("\n\n")
   }
+
+  cat(sprintf("t0: %-10.3f tau: %-10.3f", x$t0, x$tau))
+}
+handle_discrete_pred <- function(landpred_obj, t0, tau, newdata) {
+  old_landpred_result <- get_old_landpred_results_discrete(landpred_obj, t0, tau, newdata)
+  probs <- old_landpred_result$newdata[, "Probability", drop = TRUE]
+  probs
+}
+
+# Wrapper around old landpred functions
+# Given a landpred object we call the aproppriate old function
+get_old_landpred_results_discrete <- function(landpred_obj, t0, tau, newdata = NULL) {
+  x_l <- landpred_obj$X_L
+  x_s <- landpred_obj$X_S
+  Z   <- landpred_obj$Z
+  names_list <- landpred_obj$names
+
+  formatted_data <- data.frame(
+    XL = as.numeric(x_l[, "time"]),
+    DL = as.numeric(x_l[, "status"])
+  )
+
+  # Build these dataframes if we have Z and X_S
+  # ts=xs, but i dont feel like changing the naming
+  Z_df <- if (!is.null(Z)) data.frame(Z = Z) else NULL
+  ts_df <- if (!is.null(x_s)) {
+    data.frame(
+      XS = as.numeric(x_s[, "time"]),
+      DL = as.numeric(x_s[, "status"])
+    )
+  } else NULL
+
+  # Format newdata if present
+  newdata_formatted <- if (!is.null(newdata)) {
+    data.frame(
+      XL = newdata[, names_list[["x_l_name"]], drop = TRUE],
+      DL = newdata[, names_list[["d_l_name"]], drop = TRUE]
+    )
+  } else NULL
+
+  newdata_ts_df <- if (!is.null(newdata) && !is.null(x_s)) {
+    data.frame(
+      XS = newdata[, names_list[["x_s_name"]], drop = TRUE],
+      DL = newdata[, names_list[["d_s_name"]], drop = TRUE]
+    )
+  } else NULL
+
+  newdata_Z_df <- if (!is.null(newdata) && !is.null(Z)) {
+    data.frame(Z = newdata[, names_list[["covariates"]], drop = TRUE])
+  } else NULL
+
+  # Get the result based if we have X_s or Z, etc...
+  # Optionally pass in newdata if we do not have it.
+  result <- if (is.null(x_s) && is.null(Z)) {
+    do.call(Prob.Null, list(t0, tau, formatted_data,
+                            if (!is.null(newdata_formatted)) list(newdata = newdata_formatted) else list()))
+  } else if (is.null(x_s)) {
+    do.call(Prob.Covariate, c(list(
+      t0, tau, cbind(formatted_data, Z_df), short = FALSE),
+      if (!is.null(newdata)) list(newdata = cbind(newdata_formatted, newdata_Z_df)) else list()))
+  } else {
+    do.call(Prob.Covariate.ShortEvent, c(list(
+      t0, tau, cbind(formatted_data, ts_df, Z_df)),
+      if (!is.null(newdata)) list(newdata = cbind(newdata_formatted, newdata_ts_df, newdata_Z_df)) else list()))
+  }
+
+  return(result)
+}
+

@@ -27,8 +27,11 @@ var.fun(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform = identity)
 }
 \value{
 A list containing the estimated standard errors for the intercept and slopes.
+
+A list containing the estimated standard errors for the intercept and slopes.
 }
 \description{
 Estimates the variance of the coefficients for the short-term GLM using
 a perturbation resampling method.
 }
+\keyword{internal}

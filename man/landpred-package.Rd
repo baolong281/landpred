@@ -1,10 +1,10 @@
-\name{landpred-package}
-\alias{landpred-package}
-\alias{landpred}
+\name{landpred.package}
+\alias{landpred.package}
 \docType{package}
 \title{Landmark Prediction of a Survival Outcome
 }
-\description{This package includes functions for landmark prediction of a survival outcome incorporating covariate and short-term event information. For more information about landmark prediction please see: Parast, Layla, Su-Chun Cheng, and Tianxi Cai. Incorporating short-term outcome information to predict long-term survival with discrete markers. Biometrical Journal 53.2 (2011): 294-307.}
+\description{This package includes functions for landmark prediction of a survival outcome incorporating covariate and short-term event information. For more information about landmark prediction please see: Parast, Layla, Su-Chun Cheng, and Tianxi Cai. Incorporating short-term outcome information to predict long-term survival with discrete markers. Biometrical Journal 53.2 (2011): 294-307.
+This package also includes a new API for landmark prediction. Call `?landpred` for more information.}
 %~~ An overview of how to use the package, including the most important functions ~~
 
 \author{
@@ -16,7 +16,7 @@ Parast, Layla, Su-Chun Cheng, and Tianxi Cai. Incorporating short-term outcome i
 }
 \keyword{ survival }
 \examples{
-%~~ simple examples of the most important functions ~~
+%~~ simple examples of legacy API ~~
 data(data_example_landpred)
 t0=2
 tau = 8
@@ -49,9 +49,9 @@ out$newdata
 #out = Prob.Covariate.ShortEvent(t0=t0,tau=tau,data=data_example_landpred)
 #out$data
 #data.plot = out$data
-#plot(data.plot$XS[data.plot$Z ==1], data.plot$Probability[data.plot$Z ==1],
+#plot(data.plot$XS[data.plot$Z ==1], data.plot$Probability[data.plot$Z ==1], 
 #pch = 20, xlim = c(0,t0))
-#points(data.plot$XS[data.plot$Z ==0], data.plot$Probability[data.plot$Z ==0],
+#points(data.plot$XS[data.plot$Z ==0], data.plot$Probability[data.plot$Z ==0], 
 #pch = 20, col = 2)
 
 newdata = matrix(c(1,1,0.5,1,0,

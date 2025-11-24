@@ -15,9 +15,12 @@ coefficient_se(model, t_s = NULL, samples = 200)
 }
 \value{
 A named vector of standard errors.
+
+A named vector of standard errors.
 }
 \description{
 Calculates standard errors for the coefficients of the landpred model.
 If \code{t_s} is provided, it uses the perturbation resampling method.
 Otherwise, it returns the standard errors from the GLM.
 }
+\keyword{internal}

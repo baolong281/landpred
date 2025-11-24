@@ -15,8 +15,11 @@ fit_glm_normal(landpred_obj, t0, tau)
 }
 \value{
 A fitted glm object.
+
+A fitted glm object.
 }
 \description{
 Fits a GLM for the probability of the event occurring before \code{t0 + tau},
 given survival up to \code{t0}, using only baseline covariates.
 }
+\keyword{internal}

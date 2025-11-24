@@ -464,7 +464,25 @@ coefficient_se <-
     setNames(std_errors, names(coef(model$glm_noinfo)))
 }
 
-
+#' Get Landpred Model
+#'
+#' Fits the base GLM (no short covariate info) and creates a landpred model object.
+#'
+#' @param landpred_obj A landpred object.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param bw The bandwidth.
+#' @param transform Transformation function.
+#'
+#' @return A landpred_model_continuous object.
+#' @export
+get_model <- function(landpred_obj, t0, tau, bw, transform=identity) {
+  glm_noinfo <- fit_glm_normal(landpred_obj, t0, tau)
+  new_landpred_model_continuous(
+    landpred_obj, glm_noinfo, t0, tau, bw,
+    transform
+  )
+}
 
 new_landpred_model_continuous <- function(landpred_obj, glm_noinfo, t0, tau, bw, transform) {
   structure(
@@ -593,7 +611,8 @@ landpred_to_legacy_data <- function(landpred_obj) {
 }
 
 # Updated legacy bandwidth selection function using w_i instead of Wi.FUN
-min.BW.cens.ex <- function(data.cv, tau, s, h) {
+#' @keywords internal
+min_BW_cens_ex <- function(data.cv, tau, s, h) {
   X1i = data.cv[, 1]
   X2i = data.cv[, 2]
   D1i = data.cv[, 3]
@@ -618,8 +637,8 @@ min.BW.cens.ex <- function(data.cv, tau, s, h) {
 
       # Create temporary landpred object for training data
       train_landpred <- list(
-        X_L = cbind(time = X1i[subset.tra], status = D1i[subset.tra]),
-        X_S = cbind(time = X2i[subset.tra], status = D2i[subset.tra]),
+        X_L = cbind(time = X2i[subset.tra], status = D2i[subset.tra]),
+        X_S = cbind(time = X1i[subset.tra], status = D1i[subset.tra]),
         Z = Zi[subset.tra, , drop = FALSE],
         names = list(covariates = colnames(Zi), x_s_name = "X_S_time")
       )
@@ -635,8 +654,22 @@ min.BW.cens.ex <- function(data.cv, tau, s, h) {
         transform = identity
       )
 
+      if (is.null(loc.model)) {
+        BW.vec[k] = NA
+        next
+      }
+
       # Create prediction data for validation set
-      val_data <- subset_and_format_df(landpred_obj, subset.val)
+      # We need to construct val_data from data.cv
+      # data.cv has X1i (Short), X2i (Long), D1i, D2i, Zi
+      # predict expects newdata with Z and X_S_time (if needed)
+      
+      val_data <- as.data.frame(Zi[subset.val, , drop=FALSE])
+      # Add X_S_time if needed (it is X1i)
+      # The model expects the name "X_S_time" or whatever was used in training?
+      # train_landpred names: x_s_name = "X_S_time"
+      val_data$X_S_time <- X1i[subset.val]
+      
       p.hat = predict(loc.model, newdata = val_data, type = "response")
       BW = sum((((X2i[subset.val] <= tau + s) - p.hat) ^ 2) * (X2i[subset.val] >
                                                                  tau) * (X1i[subset.val] < log(tau)) * (W2i[subset.val]) * (D1i[subset.val] ==
@@ -645,7 +678,7 @@ min.BW.cens.ex <- function(data.cv, tau, s, h) {
     }
     replic[lay, ] = cbind(BW.vec[1], BW.vec[2], BW.vec[3])
   }
-  mean(replic)
+  mean(replic, na.rm = TRUE)
 }
 
 # Adapter to use legacy bandwidth selection with new landpred API
@@ -671,3 +704,111 @@ landpred_to_legacy_data <- function(landpred_obj) {
   return(legacy_data)
 }
 
+
+#' Calculate MSE for Bandwidth Selection using Cross-Validation
+#'
+#' @param bw The bandwidth to test.
+#' @param landpred_obj The landpred object.
+#' @param t0 The landmark time.
+#' @param tau The prediction window.
+#' @param transform Transformation function for short-term covariate.
+#' @param reps Number of repetitions.
+#' @param train_prop Proportion of data to use for training.
+#' @return The Mean Squared Error.
+#' @keywords internal
+mse_cv <- function(bw, landpred_obj, t0, tau, transform = identity, reps = 50, train_prop = 0.66) {
+  X_L_time <- landpred_obj$X_L[, "time"]
+  X_L_status <- landpred_obj$X_L[, "status"]
+  X_S_time <- landpred_obj$X_S[, "time"]
+  X_S_status <- landpred_obj$X_S[, "status"]
+  Z <- landpred_obj$Z
+  
+  n <- nrow(landpred_obj$X_L)
+  n_train <- floor(n * train_prop)
+  
+  mse_sum <- 0
+  valid_reps <- 0
+  
+  # Calculate weights for the whole dataset once
+  # We need censoring weights for the condition T_L > t0
+  # Wi.FUN calculates P(C > t0 + tau | C > t0) etc?
+  # Actually Wi.FUN returns weights for each individual.
+  # We should use the internal Wi.FUN logic.
+  
+  W_all <- Wi.FUN(
+    data = cbind(X_L_time, X_L_status),
+    t0 = t0,
+    tau = tau
+  )
+  
+  for (i in 1:reps) {
+    # Random split
+    ind_train <- sample(1:n, n_train)
+    ind_val <- setdiff(1:n, ind_train)
+    
+    # Define subsets based on condition: Short event happened before t0, Long event after t0
+    # We use raw time for this check as t0 is raw time.
+    
+    subset_train <- ind_train[X_S_status[ind_train] == 1 & 
+                              X_S_time[ind_train] < t0 & 
+                              X_L_time[ind_train] > t0]
+                              
+    subset_val <- ind_val[X_S_status[ind_val] == 1 & 
+                          X_S_time[ind_val] < t0 & 
+                          X_L_time[ind_val] > t0]
+    
+    if (length(subset_train) < 10 || length(subset_val) < 10) next
+    
+    # Create training object
+    train_obj <- list(
+      X_L = landpred_obj$X_L[subset_train, , drop=FALSE],
+      X_S = landpred_obj$X_S[subset_train, , drop=FALSE],
+      Z = landpred_obj$Z[subset_train, , drop=FALSE],
+      names = landpred_obj$names
+    )
+    class(train_obj) <- "landpred_object"
+    
+    # Fit model on training set
+    # We estimate coefficients at the transformed short-term times of the validation set
+    t_s_val <- transform(X_S_time[subset_val])
+    
+    tryCatch({
+      model <- fit_short_glm(
+        landpred_obj = train_obj,
+        t0 = t0,
+        tau = tau,
+        t_s = t_s_val,
+        bw = bw,
+        transform = transform
+      )
+      
+      # Predict on validation set
+      # We need to construct newdata for validation
+      val_data <- subset_and_format_df(landpred_obj, subset_val)
+      
+      preds <- predict(model, newdata = val_data, type = "response")
+      
+      # Calculate Brier Score component
+      # (1(T_L <= t0 + tau) - pred)^2
+      # Only consider those who are observed (uncensored or censored after t0+tau)
+      # But we use IPCW weights W_all
+      
+      truth <- (X_L_time[subset_val] <= t0 + tau)
+      weights <- W_all[subset_val]
+      
+      # Filter out cases where weight is 0 (censored before t0+tau)
+      # Actually Wi.FUN handles this by setting weight to 0?
+      # Yes.
+      
+      mse <- sum(weights * (truth - preds)^2) / sum(weights)
+      mse_sum <- mse_sum + mse
+      valid_reps <- valid_reps + 1
+      
+    }, error = function(e) {
+      # Ignore errors in optimization
+    })
+  }
+  
+  if (valid_reps == 0) return(Inf)
+  return(mse_sum / valid_reps)
+}

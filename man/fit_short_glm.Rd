@@ -23,9 +23,12 @@ fit_short_glm(landpred_obj, t0, tau, t_s, bw, transform, indices = NULL)
 }
 \value{
 A fitted glm object.
+
+A fitted glm object.
 }
 \description{
 Fits a GLM for the probability of the event occurring before \code{t0 + tau},
 given survival up to \code{t0} and information on a short-term covariate.
 Uses kernel weighting based on the short-term covariate value.
 }
+\keyword{internal}
