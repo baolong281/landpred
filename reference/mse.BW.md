@@ -1,55 +1,42 @@
-# Helper function for optimize.mse.BW.
+# Optimize Bandwidth for Kernel Smoothing
 
-Helper function for optimize.mse.BW.
+Calculates the Mean Squared Error (MSE) for a given bandwidth to help
+select the optimal bandwidth.
 
 ## Usage
 
 ``` r
-mse.BW(data, t0,tau,h, folds = 3,reps=2)
+mse.BW(data, t0, tau, h, folds = 3, reps = 2)
 ```
 
 ## Arguments
 
 - data:
 
-  n by 5 matrix. A data matrix where the first column is XL = min(TL, C)
-  where TL is the time of the long term event, C is the censoring time,
-  and the second column is DL =1\*(TL\<C), the third column is XS =
-  min(TS, C) where TS is the time of the short term event, C is the
-  censoring time, the fourth column is DS =1\*(TS\<C), and the fifth
-  column is the covariate. These are the data used to calculate the
-  estimated probability.
+  The data frame.
 
 - t0:
 
-  the landmark time.
+  The landmark time.
 
 - tau:
 
-  the residual survival time of interest.
+  The prediction window.
 
 - h:
 
-  bandwidth
+  The bandwidth to test.
 
 - folds:
 
-  Number of folds wanted for K-fold cross-validation. Default is 3.
+  Number of cross-validation folds.
 
 - reps:
 
-  Number of repitions wanted of K-fold cross-validation. Default is 2.
+  Number of repetitions.
 
 ## Value
 
-mean of MSE
+The MSE.
 
-## References
-
-Parast, Layla, Su-Chun Cheng, and Tianxi Cai. Incorporating short-term
-outcome information to predict long-term survival with discrete markers.
-Biometrical Journal 53.2 (2011): 294-307.
-
-## Author
-
-Layla Parast
+The MSE.

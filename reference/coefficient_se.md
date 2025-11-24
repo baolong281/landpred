@@ -27,3 +27,5 @@ coefficient_se(model, t_s = NULL, samples = 200)
 ## Value
 
 A named vector of standard errors.
+
+A named vector of standard errors.

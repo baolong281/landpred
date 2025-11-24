@@ -43,3 +43,5 @@ fit_short_glm(landpred_obj, t0, tau, t_s, bw, transform, indices = NULL)
 ## Value
 
 A fitted glm object.
+
+A fitted glm object.

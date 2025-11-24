@@ -1,6 +1,6 @@
-# Helper function
+# Cumulative Sum Helper
 
-Helper function; should not be called directly by user.
+Cumulative Sum Helper
 
 ## Usage
 
@@ -12,14 +12,4 @@ cumsum2(mydat)
 
 - mydat:
 
-  mydat
-
-## Value
-
-- out:
-
-  matrix
-
-## Author
-
-Layla Parast
+  Data matrix.

@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">landpred</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -104,15 +104,15 @@
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/therneau/survival" class="external-link">survival</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Create model with continuous covariates and short term information</span></span>
-<span><span class="va">obj1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://baolong281.github.io/landpred/reference/landpred-package.html">landpred</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_L</span>, <span class="va">D_L</span><span class="op">)</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_S</span>, <span class="va">D_S</span><span class="op">)</span> <span class="op">+</span> <span class="va">Z1</span> <span class="op">+</span> <span class="va">Z2</span>, data<span class="op">=</span><span class="va">df</span><span class="op">)</span></span>
+<span><span class="va">obj1</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/landpred.html">landpred</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_L</span>, <span class="va">D_L</span><span class="op">)</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_S</span>, <span class="va">D_S</span><span class="op">)</span> <span class="op">+</span> <span class="va">Z1</span> <span class="op">+</span> <span class="va">Z2</span>, data<span class="op">=</span><span class="va">df</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Create model with discrete marker and short term information</span></span>
 <span><span class="co"># Notice the discrete flag is now enabled, which is false by default.</span></span>
-<span><span class="va">obj2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://baolong281.github.io/landpred/reference/landpred-package.html">landpred</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_L</span>, <span class="va">D_L</span><span class="op">)</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_S</span>, <span class="va">D_S</span><span class="op">)</span> <span class="op">+</span> <span class="va">B</span>, data<span class="op">=</span><span class="va">df</span>, discrete<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">obj2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/landpred.html">landpred</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_L</span>, <span class="va">D_L</span><span class="op">)</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_S</span>, <span class="va">D_S</span><span class="op">)</span> <span class="op">+</span> <span class="va">B</span>, data<span class="op">=</span><span class="va">df</span>, discrete<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Create model with discrete marker and no short term information</span></span>
 <span><span class="co"># Notice the discrete flag is now enabled, which is false by default.</span></span>
-<span><span class="va">obj3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://baolong281.github.io/landpred/reference/landpred-package.html">landpred</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_L</span>, <span class="va">D_L</span><span class="op">)</span> <span class="op">~</span>  <span class="va">B</span>, data<span class="op">=</span><span class="va">df</span>, discrete<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">obj3</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/landpred.html">landpred</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">X_L</span>, <span class="va">D_L</span><span class="op">)</span> <span class="op">~</span>  <span class="va">B</span>, data<span class="op">=</span><span class="va">df</span>, discrete<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>We will proceed with the object with continuous covariates, and short-term information. We can call <code>summary</code> on this landpred object to get more information from it. Note this landpred object returned by the <code>landpred</code> call serves as a baseline object. To get a model for a specific time ande delta, we must call the <code>get_model</code> function on this object as specified in the <code>summary</code> function. Workflows / functions will be the same in the discrete and continuous case.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">obj1</span><span class="op">)</span></span>
@@ -145,11 +145,11 @@
 <span><span class="co">#&gt; Warning in summary.glm(model$glm_noinfo): observations with zero weight not</span></span>
 <span><span class="co">#&gt; used for calculating dispersion</span></span>
 <span><span class="co">#&gt;             Estimate Std. Error</span></span>
-<span><span class="co">#&gt; (Intercept)  1.84640     0.3022</span></span>
-<span><span class="co">#&gt; Z1          -1.03234     0.2438</span></span>
-<span><span class="co">#&gt; Z2           0.59962     0.2115</span></span>
+<span><span class="co">#&gt; (Intercept)  1.36258     0.2519</span></span>
+<span><span class="co">#&gt; Z1          -0.65084     0.2205</span></span>
+<span><span class="co">#&gt; Z2           0.29638     0.2037</span></span>
 <span><span class="co">#&gt; ---</span></span>
-<span><span class="co">#&gt; Fit on n=146 observations.</span></span>
+<span><span class="co">#&gt; Fit on n=148 observations.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; t0: 1.000      tau: 1.500</span></span></code></pre></div>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
@@ -160,11 +160,11 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients (t_s=0.800000):</span></span>
 <span><span class="co">#&gt;             Estimate Std. Error</span></span>
-<span><span class="co">#&gt; (Intercept)  12.8095     811.67</span></span>
-<span><span class="co">#&gt; Z1           -6.0911     345.42</span></span>
-<span><span class="co">#&gt; Z2            7.3664     618.72</span></span>
+<span><span class="co">#&gt; (Intercept)  4.92075     1.2256</span></span>
+<span><span class="co">#&gt; Z1          -6.38623     2.4675</span></span>
+<span><span class="co">#&gt; Z2          -0.21222     1.3436</span></span>
 <span><span class="co">#&gt; ---</span></span>
-<span><span class="co">#&gt; Fit on n=102 observations.</span></span>
+<span><span class="co">#&gt; Fit on n=96 observations.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; t0: 1.000      tau: 1.500</span></span></code></pre></div>
 </div>
@@ -175,7 +175,7 @@
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">probs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, newdata<span class="op">=</span><span class="va">df</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, , drop<span class="op">=</span><span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="va">probs</span></span>
-<span><span class="co">#&gt; [1] 0.9968329 0.8711052 0.5689068 0.9175203 0.7586372</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.8306820 0.7822569 0.7194051 0.9999910 0.8095217</span></span></code></pre></div>
 </div>
 </div>
 

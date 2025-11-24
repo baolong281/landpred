@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">landpred</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,77 +44,77 @@
           <code><a href="AUC.landmark.html">AUC.landmark()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates the area under the ROC curve (AUC).</dd>
+        <dd>Calculate AUC for Landmark Prediction</dd>
 
         <dt>
 
           <code><a href="BS.landmark.html">BS.landmark()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates the Brier score.</dd>
+        <dd>Calculate Brier Score for Landmark Prediction</dd>
 
         <dt>
 
           <code><a href="Ghat.FUN.html">Ghat.FUN()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Calculates the Kaplan Meier survival probability for censoring</dd>
+        <dd>Estimate Survival Function</dd>
 
         <dt>
 
           <code><a href="Kern.FUN.html">Kern.FUN()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Calculates kernel matrix</dd>
+        <dd>Kernel Function</dd>
 
         <dt>
 
           <code><a href="Prob.Covariate.html">Prob.Covariate()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates P(TL &lt;t0+tau | TL &gt; t0, Z), i.e. given discrete covariate.</dd>
+        <dd>Calculate Probability with Covariate Information</dd>
 
         <dt>
 
           <code><a href="Prob.Covariate.ShortEvent.html">Prob.Covariate.ShortEvent()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates P(TL &lt;t0+tau | TL &gt; t0, Z, min(TS, t0), I(TS&lt;=t0)), i.e. given discrete covariate and TS information.</dd>
+        <dd>Calculate Probability with Short Event Information</dd>
 
         <dt>
 
           <code><a href="Prob.Null.html">Prob.Null()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates P(TL &lt;t0+tau | TL &gt; t0).</dd>
+        <dd>Calculate Probability with No Information</dd>
 
         <dt>
 
           <code><a href="Prob2.html">Prob2()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates P(TL &lt;t0+tau | TL &gt; t0, Z, TS&gt;t0).</dd>
+        <dd>Calculate Probability Component (No Kernel)</dd>
 
         <dt>
 
           <code><a href="Prob2.k.t.html">Prob2.k.t()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates P(TL &lt;t0+tau | TL &gt; t0, Z, TS==ts).</dd>
+        <dd>Calculate Probability Component with Kernel Smoothing</dd>
 
         <dt>
 
           <code><a href="VTM.html">VTM()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Helper function, repeats a row.</dd>
+        <dd>Vector to Matrix</dd>
 
         <dt>
 
           <code><a href="Wi.FUN.html">Wi.FUN()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Computes the inverse probability of censoring weights for a specific t0 and tau</dd>
+        <dd>Calculate Inverse Probability of Censoring Weights</dd>
 
         <dt>
 
@@ -125,17 +125,10 @@
 
         <dt>
 
-          <code><a href="coefficient_se.html">coefficient_se()</a></code>
-
-        </dt>
-        <dd>Calculate Standard Errors for Coefficients</dd>
-
-        <dt>
-
           <code><a href="cumsum2.html">cumsum2()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Helper function</dd>
+        <dd>Cumulative Sum Helper</dd>
 
         <dt>
 
@@ -143,20 +136,6 @@
 
         </dt>
         <dd><!-- %% ~~ data name/kind ... ~~ --> Hypothetical data to be used in examples.</dd>
-
-        <dt>
-
-          <code><a href="fit_glm_normal.html">fit_glm_normal()</a></code>
-
-        </dt>
-        <dd>Fit GLM with Normal Weights (No Short Covariate Info)</dd>
-
-        <dt>
-
-          <code><a href="fit_short_glm.html">fit_short_glm()</a></code>
-
-        </dt>
-        <dd>Fit GLM with Kernel Weights (Short Covariate Info)</dd>
 
         <dt>
 
@@ -170,11 +149,11 @@
           <code><a href="helper.si.html">helper.si()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Helper function for AUC.landmark</dd>
+        <dd>Helper Function for AUC</dd>
 
         <dt>
 
-          <code><a href="landpred-package.html">landpred-package</a></code> <code><a href="landpred-package.html">landpred</a></code>
+          <code><a href="landpred-package.html">landpred.package</a></code>
 
         </dt>
         <dd>Landmark Prediction of a Survival Outcome</dd>
@@ -191,14 +170,21 @@
           <code><a href="mse.BW.html">mse.BW()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Helper function for optimize.mse.BW.</dd>
+        <dd>Optimize Bandwidth for Kernel Smoothing</dd>
 
         <dt>
 
           <code><a href="optimize.mse.BW.html">optimize.mse.BW()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Calculates initial optimal bandwidth.</dd>
+        <dd>Optimize Bandwidth (Legacy)</dd>
+
+        <dt>
+
+          <code><a href="optimize_bandwidth.html">optimize_bandwidth()</a></code>
+
+        </dt>
+        <dd>Optimize Bandwidth for Continuous Landpred Models</dd>
 
         <dt>
 
@@ -213,6 +199,13 @@
 
         </dt>
         <dd>Predict Method for Discrete Landpred Model</dd>
+
+        <dt>
+
+          <code><a href="print.landpred_model_continuous.html">print(<i>&lt;landpred_model_continuous&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print Method for Landpred Continuous Model</dd>
 
         <dt>
 
@@ -233,7 +226,7 @@
           <code><a href="prob2.single.html">prob2.single()</a></code>
 
         </dt>
-        <dd><!-- %% ~~function to do ... ~~ --> Estimates P(TL &lt;t0+tau | TL &gt; t0, Z, TS==ts) for a single t.</dd>
+        <dd>Calculate Single Probability Component</dd>
 
         <dt>
 
@@ -248,13 +241,6 @@
 
         </dt>
         <dd>Summary Method for Landpred Object</dd>
-
-        <dt>
-
-          <code><a href="var.fun.html">var.fun()</a></code>
-
-        </dt>
-        <dd>Estimate Variance of Coefficients</dd>
       </dl></div>
   </main></div>
 

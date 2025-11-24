@@ -25,9 +25,12 @@
 <url><loc>https://baolong281.github.io/landpred/reference/landpred-package.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/landpred.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/mse.BW.html</loc></url>
+<url><loc>https://baolong281.github.io/landpred/reference/mse_cv.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/optimize.mse.BW.html</loc></url>
+<url><loc>https://baolong281.github.io/landpred/reference/optimize_bandwidth.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/predict.landpred_model_continuous.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/predict.landpred_model_discrete.html</loc></url>
+<url><loc>https://baolong281.github.io/landpred/reference/print.landpred_model_continuous.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/print.landpred_model_discrete.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/print.landpred_object.html</loc></url>
 <url><loc>https://baolong281.github.io/landpred/reference/prob2.single.html</loc></url>

@@ -1,7 +1,6 @@
-# Helper function, repeats a row.
+# Vector to Matrix
 
-This function creates a matrix that repeats vc, dm times where each row
-is equal to the vc vector.
+Vector to Matrix
 
 ## Usage
 
@@ -13,13 +12,8 @@ VTM(vc, dm)
 
 - vc:
 
-  the vector to repeat.
+  Vector.
 
 - dm:
 
-  number of rows.
-
-## Value
-
-a matrix that repeats vc, dm times where each row is equal to the vc
-vector
+  Number of rows.

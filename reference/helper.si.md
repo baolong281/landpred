@@ -1,37 +1,27 @@
-# Helper function for AUC.landmark
+# Helper Function for AUC
 
-Helper function for AUC.landmark; should not be called directly by user.
+Helper Function for AUC
 
 ## Usage
 
 ``` r
-helper.si(yy,FUN,Yi,Vi=NULL)
+helper.si(yy, FUN, Yi, Vi = NULL)
 ```
 
 ## Arguments
 
 - yy:
 
-  yy
+  Vector 1.
 
 - FUN:
 
-  FUN
+  Comparison operator.
 
 - Yi:
 
-  Yi
+  Vector 2.
 
 - Vi:
 
-  Vi
-
-## Value
-
-- out:
-
-  matrix
-
-## Author
-
-Layla Parast
+  Optional weights.

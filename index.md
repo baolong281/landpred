@@ -135,11 +135,11 @@ summary(model)
 #> Warning in summary.glm(model$glm_noinfo): observations with zero weight not
 #> used for calculating dispersion
 #>             Estimate Std. Error
-#> (Intercept)  1.84640     0.3022
-#> Z1          -1.03234     0.2438
-#> Z2           0.59962     0.2115
+#> (Intercept)  1.36258     0.2519
+#> Z1          -0.65084     0.2205
+#> Z2           0.29638     0.2037
 #> ---
-#> Fit on n=146 observations.
+#> Fit on n=148 observations.
 #> 
 #> t0: 1.000      tau: 1.500
 ```
@@ -152,11 +152,11 @@ summary(model, t_s=0.8)
 #> 
 #> Coefficients (t_s=0.800000):
 #>             Estimate Std. Error
-#> (Intercept)  12.8095     811.67
-#> Z1           -6.0911     345.42
-#> Z2            7.3664     618.72
+#> (Intercept)  4.92075     1.2256
+#> Z1          -6.38623     2.4675
+#> Z2          -0.21222     1.3436
 #> ---
-#> Fit on n=102 observations.
+#> Fit on n=96 observations.
 #> 
 #> t0: 1.000      tau: 1.500
 ```
@@ -169,5 +169,5 @@ for a given observation.
 ``` r
 probs <- predict(model, newdata=df[1:5, , drop=FALSE])
 probs
-#> [1] 0.9968329 0.8711052 0.5689068 0.9175203 0.7586372
+#> [1] 0.8306820 0.7822569 0.7194051 0.9999910 0.8095217
 ```

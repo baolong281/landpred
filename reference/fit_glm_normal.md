@@ -26,3 +26,5 @@ fit_glm_normal(landpred_obj, t0, tau)
 ## Value
 
 A fitted glm object.
+
+A fitted glm object.

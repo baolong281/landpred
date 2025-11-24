@@ -1,7 +1,6 @@
-# Calculates kernel matrix
+# Kernel Function
 
-This calculates the kernel matrix needed for estimating the probability
-incorporating short term event information
+Kernel Function
 
 ## Usage
 
@@ -13,20 +12,12 @@ Kern.FUN(zz, zi, bw)
 
 - zz:
 
-  zz
+  Target points.
 
 - zi:
 
-  zi
+  Data points.
 
 - bw:
 
-  bandwidth
-
-## Value
-
-the kernel matrix
-
-## Author
-
-Layla Parast
+  Bandwidth.

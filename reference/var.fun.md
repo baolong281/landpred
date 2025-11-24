@@ -51,3 +51,6 @@ var.fun(t, data.v, tau, s, h, vmat, Ainv, weight = NULL, transform = identity)
 
 A list containing the estimated standard errors for the intercept and
 slopes.
+
+A list containing the estimated standard errors for the intercept and
+slopes.
