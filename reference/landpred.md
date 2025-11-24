@@ -1,7 +1,8 @@
 # Create a Landpred Object
 
 Parses the formula and data to create a landpred object used for
-landmark prediction.
+landmark prediction. Call \`?landpred.pacakge\` for more information on
+the legacy API.
 
 ## Usage
 

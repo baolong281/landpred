@@ -21,7 +21,7 @@ Prob.Covariate(t0, tau, data, weight = NULL, short = TRUE, newdata = NULL)
 
 - data:
 
-  The data frame.
+  The data frame for training.
 
 - weight:
 
@@ -30,6 +30,10 @@ Prob.Covariate(t0, tau, data, weight = NULL, short = TRUE, newdata = NULL)
 - short:
 
   Logical, whether the covariate is short-term.
+
+- newdata:
+
+  Dataframe of new data for prediction.
 
 ## Value
 

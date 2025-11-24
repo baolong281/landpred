@@ -112,65 +112,87 @@ covariate is provided (has not occured yet). We can also provide `t_s`
 to this call to get coefficients for if the short event has occured yet.
 
 We must first choose our bandwidth value. We provide a utility to select
-this optimal value using K-fold cross validations
+this optimal value using cross-validation:
 
 ``` r
-# t0 <- 0.5
-# tau <- 1.5
-# t_s <- 1
-# bw <- optimize_bw(obj1, tau, t_s)
-# bw
+t0 <- 0.5
+tau <- 1.5
+bw <- optimize_bandwidth(obj1, t0=t0, tau=tau, lower=0.01, upper=1, transform=identity)
+bw
+#> [1] 0.1333657
 ```
 
-``` r
-# Get model
-model <- get_model(obj1, t0=1, tau=1.5, bw=0.05)
+The optimal bandwidth is 0.133, which controls the smoothness of the
+local regression used to incorporate short-term event information. A
+smaller bandwidth gives more weight to nearby observations, while a
+larger bandwidth smooths over more data points.
 
-# Summary with no short covariate
+``` r
+# Get model using the optimized bandwidth
+model <- get_model(obj1, t0=t0, tau=tau, bw=bw, transform=identity)
+
+# Summary with no short covariate information
 summary(model)
 #> 
 #> Continuous Landpred Model:
 #> 
 #> Coefficients (No short covariate):
-#> Warning in summary.glm(model$glm_noinfo): observations with zero weight not
-#> used for calculating dispersion
 #>             Estimate Std. Error
-#> (Intercept)  1.36258     0.2519
-#> Z1          -0.65084     0.2205
-#> Z2           0.29638     0.2037
+#> (Intercept)  1.50236     0.1934
+#> Z1          -0.83170     0.1699
+#> Z2           0.47622     0.1519
 #> ---
-#> Fit on n=148 observations.
+#> Fit on n=261 observations.
 #> 
-#> t0: 1.000      tau: 1.500
+#> t0: 0.500      tau: 1.500
 ```
 
+The model summary shows coefficients for predicting survival beyond time
+`t0 + tau`, given survival to the landmark time `t0 = 0.5`. Calling
+summary without `t_s` returns the coefficients for the model when no
+short event information is provided.
+
 ``` r
-# Summary with short covariate
-summary(model, t_s=0.8)
+# Summary with short covariate information (if short event occurred at time 0.3)
+summary(model, t_s=0.3)
 #> 
 #> Continuous Landpred Model:
 #> 
-#> Coefficients (t_s=0.800000):
+#> Coefficients (t_s=0.300000):
 #>             Estimate Std. Error
-#> (Intercept)  4.92075     1.2256
-#> Z1          -6.38623     2.4675
-#> Z2          -0.21222     1.3436
+#> (Intercept)  1.55723     0.5463
+#> Z1          -0.89340     0.4170
+#> Z2           0.49641     0.5249
 #> ---
-#> Fit on n=96 observations.
+#> Fit on n=105 observations.
 #> 
-#> t0: 1.000      tau: 1.500
+#> t0: 0.500      tau: 1.500
 ```
+
+When we condition on the short event occurring at a specific time (here
+0.3), the model provides locally-weighted coefficients that incorporate
+this timing information for more accurate predictions.
 
 ## Prediction
 
-We can also do prediction wiih this model to get survival probabilities
-for a given observation.
+We can also do prediction with this model to get survival probabilities
+for a given observation:
 
 ``` r
 probs <- predict(model, newdata=df[1:5, , drop=FALSE])
 probs
-#> [1] 0.8306820 0.7822569 0.7194051 0.9999910 0.8095217
+#> [1] 0.86239039 0.95018224 0.09478818 0.85729249 0.78854048
 ```
+
+These probabilities represent the estimated risk of the long-term event
+occurring by time `t0 + tau`, conditional on surviving to the landmark
+time `t0`. Higher values indicate greater risk. Here, newdata is a
+dataframe also containing the short event information for each
+observation. If this short event time is less than the value of `t_0`,
+then the short event time is incorporated into the probability, giving
+`P(X_L > t_0 + tau | X=x, X_s=t_s)`. If the short event time is greater
+than `t_0`, then the short event time is not incorporated into the
+probability, giving instead `P(X_L > t_0 + tau | X=x)`. \`\`\`
 
 # Package index
 

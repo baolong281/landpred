@@ -125,57 +125,59 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Discrete: FALSE    Short Covariate: TRUE     N: 500</span></span></code></pre></div>
 <p>Our <code>get_model</code> function accepts a landpred object as input, and three required parameters, <code>t0</code>, <code>tau</code>, and <code>bw</code>. This returns a landmark prediction model for that specific time and delta. For the coefficients and standard errors of the coefficeints, we call <code>summary</code> on the returned model to get coefficients when no information in the short covariate is provided (has not occured yet). We can also provide <code>t_s</code> to this call to get coefficients for if the short event has occured yet.</p>
-<p>We must first choose our bandwidth value. We provide a utility to select this optimal value using K-fold cross validations</p>
+<p>We must first choose our bandwidth value. We provide a utility to select this optimal value using cross-validation:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># t0 &lt;- 0.5</span></span>
-<span><span class="co"># tau &lt;- 1.5</span></span>
-<span><span class="co"># t_s &lt;- 1</span></span>
-<span><span class="co"># bw &lt;- optimize_bw(obj1, tau, t_s)</span></span>
-<span><span class="co"># bw</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">t0</span> <span class="op">&lt;-</span> <span class="fl">0.5</span></span>
+<span><span class="va">tau</span> <span class="op">&lt;-</span> <span class="fl">1.5</span></span>
+<span><span class="va">bw</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/optimize_bandwidth.html">optimize_bandwidth</a></span><span class="op">(</span><span class="va">obj1</span>, t0<span class="op">=</span><span class="va">t0</span>, tau<span class="op">=</span><span class="va">tau</span>, lower<span class="op">=</span><span class="fl">0.01</span>, upper<span class="op">=</span><span class="fl">1</span>, transform<span class="op">=</span><span class="va">identity</span><span class="op">)</span></span>
+<span><span class="va">bw</span></span>
+<span><span class="co">#&gt; [1] 0.1333657</span></span></code></pre></div>
+<p>The optimal bandwidth is 0.133, which controls the smoothness of the local regression used to incorporate short-term event information. A smaller bandwidth gives more weight to nearby observations, while a larger bandwidth smooths over more data points.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Get model</span></span>
-<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_model.html">get_model</a></span><span class="op">(</span><span class="va">obj1</span>, t0<span class="op">=</span><span class="fl">1</span>, tau<span class="op">=</span><span class="fl">1.5</span>, bw<span class="op">=</span><span class="fl">0.05</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Get model using the optimized bandwidth</span></span>
+<span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_model.html">get_model</a></span><span class="op">(</span><span class="va">obj1</span>, t0<span class="op">=</span><span class="va">t0</span>, tau<span class="op">=</span><span class="va">tau</span>, bw<span class="op">=</span><span class="va">bw</span>, transform<span class="op">=</span><span class="va">identity</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Summary with no short covariate</span></span>
+<span><span class="co"># Summary with no short covariate information</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Continuous Landpred Model:</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Coefficients (No short covariate):</span></span>
-<span><span class="co">#&gt; Warning in summary.glm(model$glm_noinfo): observations with zero weight not</span></span>
-<span><span class="co">#&gt; used for calculating dispersion</span></span>
 <span><span class="co">#&gt;             Estimate Std. Error</span></span>
-<span><span class="co">#&gt; (Intercept)  1.36258     0.2519</span></span>
-<span><span class="co">#&gt; Z1          -0.65084     0.2205</span></span>
-<span><span class="co">#&gt; Z2           0.29638     0.2037</span></span>
+<span><span class="co">#&gt; (Intercept)  1.50236     0.1934</span></span>
+<span><span class="co">#&gt; Z1          -0.83170     0.1699</span></span>
+<span><span class="co">#&gt; Z2           0.47622     0.1519</span></span>
 <span><span class="co">#&gt; ---</span></span>
-<span><span class="co">#&gt; Fit on n=148 observations.</span></span>
+<span><span class="co">#&gt; Fit on n=261 observations.</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; t0: 1.000      tau: 1.500</span></span></code></pre></div>
+<span><span class="co">#&gt; t0: 0.500      tau: 1.500</span></span></code></pre></div>
+<p>The model summary shows coefficients for predicting survival beyond time <code>t0 + tau</code>, given survival to the landmark time <code>t0 = 0.5</code>. Calling summary without <code>t_s</code> returns the coefficients for the model when no short event information is provided.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Summary with short covariate</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">model</span>, t_s<span class="op">=</span><span class="fl">0.8</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Summary with short covariate information (if short event occurred at time 0.3)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">model</span>, t_s<span class="op">=</span><span class="fl">0.3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Continuous Landpred Model:</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Coefficients (t_s=0.800000):</span></span>
+<span><span class="co">#&gt; Coefficients (t_s=0.300000):</span></span>
 <span><span class="co">#&gt;             Estimate Std. Error</span></span>
-<span><span class="co">#&gt; (Intercept)  4.92075     1.2256</span></span>
-<span><span class="co">#&gt; Z1          -6.38623     2.4675</span></span>
-<span><span class="co">#&gt; Z2          -0.21222     1.3436</span></span>
+<span><span class="co">#&gt; (Intercept)  1.55723     0.5463</span></span>
+<span><span class="co">#&gt; Z1          -0.89340     0.4170</span></span>
+<span><span class="co">#&gt; Z2           0.49641     0.5249</span></span>
 <span><span class="co">#&gt; ---</span></span>
-<span><span class="co">#&gt; Fit on n=96 observations.</span></span>
+<span><span class="co">#&gt; Fit on n=105 observations.</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; t0: 1.000      tau: 1.500</span></span></code></pre></div>
+<span><span class="co">#&gt; t0: 0.500      tau: 1.500</span></span></code></pre></div>
+<p>When we condition on the short event occurring at a specific time (here 0.3), the model provides locally-weighted coefficients that incorporate this timing information for more accurate predictions.</p>
 </div>
 <div class="section level2">
 <h2 id="prediction">Prediction<a class="anchor" aria-label="anchor" href="#prediction"></a>
 </h2>
-<p>We can also do prediction wiih this model to get survival probabilities for a given observation.</p>
+<p>We can also do prediction with this model to get survival probabilities for a given observation:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">probs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">model</span>, newdata<span class="op">=</span><span class="va">df</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, , drop<span class="op">=</span><span class="cn">FALSE</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="va">probs</span></span>
-<span><span class="co">#&gt; [1] 0.8306820 0.7822569 0.7194051 0.9999910 0.8095217</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.86239039 0.95018224 0.09478818 0.85729249 0.78854048</span></span></code></pre></div>
+<p>These probabilities represent the estimated risk of the long-term event occurring by time <code>t0 + tau</code>, conditional on surviving to the landmark time <code>t0</code>. Higher values indicate greater risk. Here, newdata is a dataframe also containing the short event information for each observation. If this short event time is less than the value of <code>t_0</code>, then the short event time is incorporated into the probability, giving <code>P(X_L &gt; t_0 + tau | X=x, X_s=t_s)</code>. If the short event time is greater than <code>t_0</code>, then the short event time is not incorporated into the probability, giving instead <code>P(X_L &gt; t_0 + tau | X=x)</code>. ```</p>
 </div>
 </div>
 

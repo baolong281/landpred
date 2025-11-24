@@ -6,7 +6,7 @@ Predicts the probability of the event occurring given new data.
 
 ``` r
 # S3 method for class 'landpred_model_continuous'
-predict(object, newdata = NULL, type = "response")
+predict(object, newdata = NULL, type = "response", ...)
 ```
 
 ## Arguments
@@ -22,6 +22,10 @@ predict(object, newdata = NULL, type = "response")
 - type:
 
   Type of prediction (default "response").
+
+- ...:
+
+  Additional arguments
 
 ## Value
 
